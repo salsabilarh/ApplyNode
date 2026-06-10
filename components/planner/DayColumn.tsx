@@ -2,13 +2,14 @@
 import { Droppable } from '@hello-pangea/dnd';
 import PlannerJobCard from './PlannerJobCard';
 import { format, isToday, isSameMonth } from 'date-fns';
+import { Priority } from '@prisma/client';
 
 type Job = {
   id: string;
   position: string;
   company: string;
   platform: string;
-  priority: string;
+  priority: Priority;
   status: string;
   plannedApplyDate: string | null;
 };
