@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Lamaranku - Job Tracking',
+  title: 'ApplyNode - Pusat kendali lamaran kerja',
   description: 'Aplikasi sederhana untuk melacak pelamaran kerja.',
 };
 

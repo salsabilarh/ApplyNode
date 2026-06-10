@@ -1,10 +1,29 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs'); // Impor bcrypt untuk hashing password mock user
 const prisma = new PrismaClient();
 
 async function main() {
+  // 1. Buat password tiruan yang terenkripsi aman
+  const hashedPassword = await bcrypt.hash('password123', 12);
+
+  // 2. Buat atau cari user tiruan agar data seed terikat ke user ini
+  const mockUser = await prisma.user.upsert({
+    where: { email: 'developer@example.com' },
+    update: {},
+    create: {
+      name: 'Salsabila Rafifah',
+      email: 'developer@example.com',
+      password: hashedPassword,
+    },
+  });
+
+  console.log(`Mock user berhasil diverifikasi/dibuat dengan ID: ${mockUser.id}`);
+
+  // 3. Masukkan data lowongan yang sudah disisipkan userId milik mockUser
   await prisma.job.createMany({
     data: [
       {
+        userId: mockUser.id, // <--- Sisipkan Foreign Key di sini
         position: 'Frontend Developer',
         jobType: 'FULL_TIME',
         company: 'PT Tekno Nusantara',
@@ -17,6 +36,7 @@ async function main() {
         status: 'TO_BE_APPLY',
       },
       {
+        userId: mockUser.id, // <--- Sisipkan Foreign Key di sini
         position: 'UI/UX Designer',
         jobType: 'FREELANCE',
         company: 'Kreatif Studio',
@@ -27,6 +47,7 @@ async function main() {
         status: 'ON_PROGRESS',
       },
       {
+        userId: mockUser.id, // <--- Sisipkan Foreign Key di sini
         position: 'Backend Developer',
         jobType: 'CONTRACT',
         company: 'PT Digital Mandiri',
@@ -37,6 +58,8 @@ async function main() {
       },
     ],
   });
+
+  console.log('Seeding data lowongan kerja berhasil dimasukkan!');
 }
 
 main()
