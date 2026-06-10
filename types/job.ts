@@ -10,15 +10,14 @@ export interface Job {
   priority: Priority;
   status: JobStatus;
   jobType: JobType;
-  // Ubah dari ? (undefined) menjadi | null (tanpa tanda tanya)
+  // Gunakan string | null agar kompatibel dengan JSON.stringify(date)
   plannedApplyDate: string | null; 
-  openingDate: string | null;
-  sourceLink: string | null;
-  description: string | null;
-  duration: string | null;
-  plannedApplyTime: string | null;
-  applyNotes: string | null;
-  notes: string | null;
-  // createdAt bisa tetap opsional karena biasanya di-generate oleh DB
+  openingDate?: string | null;
   createdAt?: string;
+  sourceLink?: string | null;
+  description?: string | null;
+  duration?: string | null;
+  plannedApplyTime?: string | null;
+  applyNotes?: string | null;
+  notes?: string | null;
 }

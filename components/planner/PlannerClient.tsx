@@ -59,12 +59,13 @@ export default function PlannerClient() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plannedApplyDate: newPlannedDate
-            ? new Date(newPlannedDate).toISOString()
-            : null,
+          // Pastikan formatnya murni string ISO agar sesuai dengan ekspektasi database
+          plannedApplyDate: newPlannedDate 
+            ? new Date(newPlannedDate).toISOString() 
+            : null, 
         }),
       });
-      if (!response.ok) throw new Error('Gagal memperbarui di server');
+      if (!response.ok) throw new Error('Gagal memperbarui');
     } catch (error) {
       setJobs(previousJobs);
       alert('Gagal menyinkronkan jadwal ke database. Sesi dipulihkan.');
@@ -96,11 +97,15 @@ export default function PlannerClient() {
     (job) => !job.plannedApplyDate && (job.status === 'BACKLOG' || job.status === 'APPLYING')
   );
 
-  const getJobsForDate = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return jobs.filter((job) => job.plannedApplyDate?.startsWith(dateStr));
-  };
-
+const getJobsForDate = (date: Date) => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return jobs.filter((job) => {
+    // Jika plannedApplyDate null, jangan ikut difilter
+    if (!job.plannedApplyDate) return false;
+    // Gunakan slice/startsWith pada string ISO
+    return job.plannedApplyDate.startsWith(dateStr);
+  });
+};
   const scheduledCount = jobs.filter((j) => j.plannedApplyDate).length;
   const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
