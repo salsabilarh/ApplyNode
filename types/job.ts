@@ -7,16 +7,16 @@ export interface Job {
   company: string;
   platform: string;
   deadline: string;
-  openingDate?: string | null;
-  createdAt?: string;
   priority: Priority;
   status: JobStatus;
   jobType: JobType;
-  sourceLink?: string;
-  description?: string;
-  duration?: string;
-  plannedApplyDate?: string;
-  plannedApplyTime?: string;
-  applyNotes?: string;
-  notes?: string;
+  plannedApplyDate?: string | null; 
+  openingDate?: string | null;
+  createdAt?: string;
+  sourceLink?: string | null;
+  description?: string | null;
+  duration?: string | null;
+  plannedApplyTime?: string | null;
+  applyNotes?: string | null;
+  notes?: string | null;
 }

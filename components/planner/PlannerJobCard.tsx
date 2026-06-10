@@ -1,28 +1,18 @@
 'use client';
 import { Draggable } from '@hello-pangea/dnd';
-import { Priority } from '@prisma/client';
 import { Edit2 } from 'lucide-react';
 import Link from 'next/link';
+// IMPORT INI YANG HARUS DITAMBAHKAN
+import { Job } from '@/types/job'; 
 
-type Job = {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  priority: Priority;
-  status: string;
-  plannedApplyDate: string | null;
-};
-
-export default function PlannerJobCard({
-  job,
-  index,
-  isScheduled,
-}: {
+interface PlannerJobCardProps {
   job: Job;
   index: number;
   isScheduled: boolean;
-}) {
+}
+
+export default function PlannerJobCard({ job, index, isScheduled }: PlannerJobCardProps) {
+  // Pastikan priority sesuai dengan enum Priority
   const priorityColors = {
     HIGH: 'bg-red-500',
     MEDIUM: 'bg-amber-500',
@@ -43,7 +33,7 @@ export default function PlannerJobCard({
           }`}
         >
           {/* Dot Indicator Prioritas */}
-          <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${priorityColors}`} />
+          <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${priorityColors || 'bg-slate-300'}`} />
           
           <div className="min-w-0 flex-1 leading-tight pr-4">
             <h4 className="font-bold text-[10px] text-slate-800 tracking-tight line-clamp-1">
@@ -54,7 +44,6 @@ export default function PlannerJobCard({
             </p>
           </div>
 
-          {/* Tombol Aksi Edit Instan (Muncul Pop-up halus saat di-hover) */}
           <Link
             href={`/jobs/${job.id}/edit`}
             className="absolute right-1 top-1.5 p-1 rounded bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-150"
