@@ -2,16 +2,7 @@
 import { Droppable } from '@hello-pangea/dnd';
 import PlannerJobCard from './PlannerJobCard';
 import { Inbox } from 'lucide-react';
-
-type Job = {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  priority: string;
-  status: string;
-  plannedApplyDate: string | null;
-};
+import { Job } from '@/types/job';
 
 export default function UnscheduledPool({ jobs }: { jobs: Job[] }) {
   return (
