@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobType {
+  FULL_TIME
+  FREELANCE
+  PROJECT_BASED
+  INTERNSHIP
+  BOOTCAMP
+  CONTRACT
+  PART_TIME
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Status {
+  TO_BE_APPLY
+  ON_PROGRESS
+  APPLIED
+  CLOSED
+}
+
+model Job {
+  id               String     @id @default(cuid())
+  position         String
+  jobType          JobType    @default(FULL_TIME)
+  company          String
+  platform         String
+  sourceLink       String?
+  description      String?    @db.Text
+  duration         String?
+  deadline         DateTime
+  openingDate      DateTime?
+  priority         Priority   @default(MEDIUM)
+  status           Status     @default(TO_BE_APPLY)
+  plannedApplyDate DateTime?
+  plannedApplyTime String?
+  applyNotes       String?    @db.Text
+  notes            String?    @db.Text
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
