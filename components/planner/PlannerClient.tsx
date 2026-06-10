@@ -18,17 +18,6 @@ import { id } from 'date-fns/locale';
 import { CalendarDays, CalendarCheck, RefreshCw, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import { Job } from '@/types/job';
 
-type Job = {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  priority: string;
-  status: string;
-  deadline: string;
-  plannedApplyDate: string | null;
-};
-
 export default function PlannerClient() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,9 +93,7 @@ export default function PlannerClient() {
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
   const unscheduledJobs = jobs.filter(
-    (job) =>
-      !job.plannedApplyDate &&
-      (job.status === 'TO_BE_APPLY' || job.status === 'ON_PROGRESS')
+    (job) => !job.plannedApplyDate && (job.status === 'BACKLOG' || job.status === 'APPLYING')
   );
 
   const getJobsForDate = (date: Date) => {
