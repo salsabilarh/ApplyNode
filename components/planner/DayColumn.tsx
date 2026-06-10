@@ -2,27 +2,15 @@
 import { Droppable } from '@hello-pangea/dnd';
 import PlannerJobCard from './PlannerJobCard';
 import { format, isToday, isSameMonth } from 'date-fns';
-import { Priority } from '@prisma/client';
+import { Job } from '@/types/job';
 
-type Job = {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  priority: Priority;
-  status: string;
-  plannedApplyDate: string | null;
-};
+interface DayColumnProps {
+  date: Date;
+  jobs: Job[]; // Gunakan interface yang sudah konsisten
+  currentMonth: Date;
+}
 
-export default function DayColumn({ 
-  date, 
-  currentMonth, 
-  jobs 
-}: { 
-  date: Date; 
-  currentMonth: Date; 
-  jobs: Job[] 
-}) {
+export default function DayColumn({ date, jobs, currentMonth }: DayColumnProps) {
   const isCurrentMonth = isSameMonth(date, currentMonth);
   const isDateToday = isToday(date);
   const dateString = format(date, 'yyyy-MM-dd');

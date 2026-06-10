@@ -16,6 +16,7 @@ import {
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { CalendarDays, CalendarCheck, RefreshCw, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { Job } from '@/types/job';
 
 type Job = {
   id: string;

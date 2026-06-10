@@ -116,6 +116,11 @@ const autoCheckExpiredJobs = async (fetchedJobs: Job[]) => {
 
   if (expiredJobs.length === 0) return;
 
+  await fetch('/api/jobs/batch-close', {
+    method: 'POST',
+    body: JSON.stringify({ ids: expiredJobs.map(j => j.id) })
+  });
+  
   // Eksekusi pembaruan status ke CLOSED secara paralel di background
   const updatePromises = expiredJobs.map((job) =>
     fetch(`/api/jobs/${job.id}`, {
