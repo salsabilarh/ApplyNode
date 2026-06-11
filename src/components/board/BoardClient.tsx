@@ -98,83 +98,83 @@ export default function BoardClient() {
     company: string;
   } | null>(null);
 
-// Jalankan pengecekan otomatis untuk lowongan yang melewati deadline
-const autoCheckExpiredJobs = async (fetchedJobs: Job[]) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Jalankan pengecekan otomatis untuk lowongan yang melewati deadline
+  const autoCheckExpiredJobs = async (fetchedJobs: Job[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Daftar status yang dianggap "Belum Terkumpul/Belum Aman" (Sebelum APPLIED)
-  const sebelumAppliedStatus = ['BACKLOG', 'APPLYING'];
+    // Daftar status yang dianggap "Belum Terkumpul/Belum Aman" (Sebelum APPLIED)
+    const sebelumAppliedStatus = ['BACKLOG', 'APPLYING'];
 
-  // Cari apakah ada lowongan yang harus otomatis ditutup
-  const expiredJobs = fetchedJobs.filter((job) => {
-    const jobDeadline = new Date(job.deadline);
-    jobDeadline.setHours(0, 0, 0, 0);
+    // Cari apakah ada lowongan yang harus otomatis ditutup
+    const expiredJobs = fetchedJobs.filter((job) => {
+      const jobDeadline = new Date(job.deadline);
+      jobDeadline.setHours(0, 0, 0, 0);
 
-    return sebelumAppliedStatus.includes(job.status) && jobDeadline < today;
-  });
+      return sebelumAppliedStatus.includes(job.status) && jobDeadline < today;
+    });
 
-  if (expiredJobs.length === 0) return;
+    if (expiredJobs.length === 0) return;
 
-  await fetch('/api/jobs/batch-close', {
-    method: 'POST',
-    body: JSON.stringify({ ids: expiredJobs.map(j => j.id) })
-  });
-  
-  // Eksekusi pembaruan status ke CLOSED secara paralel di background
-  const updatePromises = expiredJobs.map((job) =>
-    fetch(`/api/jobs/${job.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        status: 'CLOSED',
-        // Opsional: kirim flag atau biarkan backend tahu ini auto-closed
-      }),
-    })
-  );
-
-  try {
-    await Promise.all(updatePromises);
+    await fetch('/api/jobs/batch-close', {
+      method: 'POST',
+      body: JSON.stringify({ ids: expiredJobs.map(j => j.id) })
+    });
     
-    // Perbarui state lokal secara instan agar user tidak melihat keanehan data
-    setJobs((prevJobs) =>
-      prevJobs.map((job) => {
-        const jobDeadline = new Date(job.deadline);
-        jobDeadline.setHours(0, 0, 0, 0);
-        
-        if (sebelumAppliedStatus.includes(job.status) && jobDeadline < today) {
-          return { ...job, status: 'CLOSED' };
-        }
-        return job;
+    // Eksekusi pembaruan status ke CLOSED secara paralel di background
+    const updatePromises = expiredJobs.map((job) =>
+      fetch(`/api/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'CLOSED',
+          // Opsional: kirim flag atau biarkan backend tahu ini auto-closed
+        }),
       })
     );
-    
-    router.refresh();
-  } catch (error) {
-    console.error('Gagal menjalankan otomatisasi penutupan lowongan:', error);
-  }
-};
 
-const fetchJobs = async () => {
-  try {
-    setLoading(true);
-    const res = await fetch('/api/jobs');
-    if (!res.ok) throw new Error('Gagal mengambil data lowongan');
-    const data = await res.json();
-    setJobs(data);
-    
-    // Pemicu pengecekan otomatis setelah data masuk ke state
-    await autoCheckExpiredJobs(data);
-  } catch (err: any) {
-    setError(err.message || 'Terjadi kesalahan sistem');
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      await Promise.all(updatePromises);
+      
+      // Perbarui state lokal secara instan agar user tidak melihat keanehan data
+      setJobs((prevJobs) =>
+        prevJobs.map((job) => {
+          const jobDeadline = new Date(job.deadline);
+          jobDeadline.setHours(0, 0, 0, 0);
+          
+          if (sebelumAppliedStatus.includes(job.status) && jobDeadline < today) {
+            return { ...job, status: 'CLOSED' };
+          }
+          return job;
+        })
+      );
+      
+      router.refresh();
+    } catch (error) {
+      console.error('Gagal menjalankan otomatisasi penutupan lowongan:', error);
+    }
+  };
 
-useEffect(() => {
-  fetchJobs();
-}, []);
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/jobs');
+      if (!res.ok) throw new Error('Gagal mengambil data lowongan');
+      const data = await res.json();
+      setJobs(data);
+      
+      // Pemicu pengecekan otomatis setelah data masuk ke state
+      await autoCheckExpiredJobs(data);
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan sistem');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
 
   const executeUpdateStatus = async (id: string, payload: { status: string; deadline?: string }) => {
     try {
@@ -232,15 +232,16 @@ useEffect(() => {
 
   const totalJobsCount = jobs.length;
   const offeringCount = jobs.filter(j => j.status === 'OFFERING').length;
- // 1. Tentukan status apa saja yang dianggap sudah "Apply" atau dalam proses
-const activeApplyStatuses = [
-  'APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD', 
-  'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE', 
-  'MEDICAL_CHECK_UP', 'OFFERING'
-];
+  
+  // 1. Tentukan status apa saja yang dianggap sudah "Apply" atau dalam proses
+  const activeApplyStatuses = [
+    'APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD', 
+    'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE', 
+    'MEDICAL_CHECK_UP', 'OFFERING'
+  ];
 
-// 2. Hitung jumlah lamaran yang sudah masuk tahap "Applied"
-const appliedCount = jobs.filter(j => activeApplyStatuses.includes(j.status)).length;
+  // 2. Hitung jumlah lamaran yang sudah masuk tahap "Applied"
+  const appliedCount = jobs.filter(j => activeApplyStatuses.includes(j.status)).length;
 
 // 3. Kalkulasi Success Rate (Target Finis)
 // Sekarang rasio dihitung dari berapa banyak yang sudah berhasil 'Applied' dari total lowongan
@@ -263,15 +264,15 @@ const successRate = totalJobsCount > 0 ? Math.round((appliedCount / totalJobsCou
           <h1 className="text-base font-black text-slate-900 flex items-center gap-2 tracking-tight">
             <Briefcase className="text-blue-600" size={18} strokeWidth={2.5} /> Alur Pelacakan Karier Vertikal
           </h1>
-<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mt-0.5 font-medium">
-  <span>Total: <strong className="text-slate-700 font-bold">{totalJobsCount}</strong></span>
-  <span className="flex items-center gap-1 text-sky-600">
-    <CheckCircle2 size={12} /> Applied: <strong className="font-bold">{appliedCount}</strong>
-  </span>
-  <span className="flex items-center gap-1 text-blue-600">
-    <BarChart3 size={12} /> Conversion Rate: <strong className="font-bold">{successRate}%</strong>
-  </span>
-</div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mt-0.5 font-medium">
+              <span>Total: <strong className="text-slate-700 font-bold">{totalJobsCount}</strong></span>
+              <span className="flex items-center gap-1 text-sky-600">
+                <CheckCircle2 size={12} /> Applied: <strong className="font-bold">{appliedCount}</strong>
+              </span>
+              <span className="flex items-center gap-1 text-blue-600">
+                <BarChart3 size={12} /> Conversion Rate: <strong className="font-bold">{successRate}%</strong>
+              </span>
+            </div>
         </div>
         <Link
           href="/jobs/new"

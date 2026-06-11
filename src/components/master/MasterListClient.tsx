@@ -18,6 +18,7 @@ import {
 
 interface Job {
   id: string;
+  user_id: string;
   position: string;
   company: string;
   platform: string;

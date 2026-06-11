@@ -28,10 +28,19 @@ export default function PlannerClient() {
   useEffect(() => {
     fetch('/api/jobs')
       .then((res) => res.json())
-      .then((data) => setJobs(data))
-      .catch((err) => console.error("Gagal memuat agenda planner:", err))
+      .then((data) => {
+        // PERBAIKAN: Selalu pastikan data adalah Array
+        setJobs(Array.isArray(data) ? data : []); 
+      })
+      .catch((err) => {
+        console.error("Gagal memuat:", err);
+        setJobs([]); 
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  // PERBAIKAN: Gunakan Array.isArray sebelum .filter
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -93,19 +102,19 @@ export default function PlannerClient() {
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
+  // 2. Gunakan filter dengan aman
   const unscheduledJobs = jobs.filter(
     (job) => !job.plannedApplyDate && (job.status === 'BACKLOG' || job.status === 'APPLYING')
   );
 
-const getJobsForDate = (date: Date) => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  return jobs.filter((job) => {
-    // Jika plannedApplyDate null, jangan ikut difilter
-    if (!job.plannedApplyDate) return false;
-    // Gunakan slice/startsWith pada string ISO
-    return job.plannedApplyDate.startsWith(dateStr);
-  });
-};
+  const getJobsForDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return safeJobs.filter((job) => {
+      if (!job.plannedApplyDate) return false;
+      return job.plannedApplyDate.startsWith(dateStr);
+    });
+  };
+
   const scheduledCount = jobs.filter((j) => j.plannedApplyDate).length;
   const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 

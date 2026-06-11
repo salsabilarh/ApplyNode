@@ -24,40 +24,36 @@ export default function Column({ id, label, colorClass, jobs, quantity, percenta
             {quantity}
           </span>
         </div>
-        {quantity > 0 && (
-          <span className="text-[9px] font-medium opacity-60">{percentage}%</span>
-        )}
       </div>
 
       {/* Area Droppable Kontainer Adaptif */}
-      {/* Area Droppable Kontainer Adaptif */}
-<Droppable droppableId={id}>
-  {(provided, snapshot) => (
-    <div
-      ref={provided.innerRef}
-      {...provided.droppableProps}
-      className={`p-2 flex flex-col gap-2 transition-all duration-300 rounded-b-xl ${
-        snapshot.isDraggingOver ? 'bg-slate-100/70' : 'bg-transparent'
-      } ${
-        jobs.length === 0 
-          ? 'min-h-[48px] justify-center items-center' 
-          : 'h-auto min-h-[120px]' 
-      }`}
-    >
-      {jobs.length === 0 ? (
-        <p className="text-[10px] text-slate-300 font-medium tracking-wide pointer-events-none select-none animate-pulse">
-          Drop di sini
-        </p>
-      ) : (
-        jobs.map((job, index) => (
-          // Cukup panggil JobCard dan oper property index ke dalamnya
-          <JobCard key={job.id} job={job} index={index} />
-        ))
-      )}
-      {provided.placeholder}
-    </div>
-  )}
-</Droppable>
+      <Droppable droppableId={id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`p-2 flex flex-col gap-2 transition-all duration-300 rounded-b-xl ${
+              snapshot.isDraggingOver ? 'bg-slate-100/70' : 'bg-transparent'
+            } ${
+              jobs.length === 0 
+                ? 'min-h-[48px] justify-center items-center' 
+                : 'h-auto min-h-[120px]' 
+            }`}
+          >
+            {jobs.length === 0 ? (
+              <p className="text-[10px] text-slate-300 font-medium tracking-wide pointer-events-none select-none animate-pulse">
+                Drop di sini
+              </p>
+            ) : (
+              jobs.map((job, index) => (
+                // Cukup panggil JobCard dan oper property index ke dalamnya
+                <JobCard key={job.id} job={job} index={index} />
+              ))
+            )}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
     </div>
   );
 }

@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { JobType, Priority, JobStatus } from '@prisma/client';
-import { ArrowLeft, Save, XCircle, Loader2, Briefcase, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, XCircle, Loader2, Briefcase, Calendar, FileText, AlertCircle, Trash2 } from 'lucide-react';
+import { useModal } from '@/context/ModalContext';
 
 type JobData = {
   id?: string;
@@ -52,22 +53,61 @@ const formatInitialDataForInput = (data: any) => {
   };
 };
 
+const DATE_INPUT_STYLE = "w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all duration-200";
+const ERROR_DATE_STYLE = "w-full border border-rose-300 bg-rose-50/50 rounded-xl px-3 py-2.5 text-sm text-rose-900 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all duration-200";
+
+const ProfessionalDateInput = ({ 
+  label, name, value, onChange, error, required 
+}: { 
+  label: string; name: string; value: string; onChange: any; error?: string; required?: boolean 
+}) => (
+  <div className="flex flex-col">
+    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+      {label} {required && <span className="text-rose-500">*</span>}
+    </label>
+    <div className="relative group">
+      <input
+        type="date"
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        max="2100-12-31" 
+        className={`${error ? ERROR_DATE_STYLE : DATE_INPUT_STYLE} cursor-pointer transition-all`}
+      />
+      <Calendar 
+        size={16} 
+        className="absolute right-3 top-3 text-slate-400 group-hover:text-blue-500 transition-colors pointer-events-none" 
+      />
+    </div>
+    {error && (
+      <p className="flex items-center gap-1 mt-1.5 text-[10px] font-medium text-rose-500">
+        <AlertCircle size={10} /> {error}
+      </p>
+    )}
+  </div>
+);
+
 export default function JobForm({ initialData }: { initialData?: any }) {
   const router = useRouter();
+  const baseInputStyle = "w-full border border-slate-200 bg-slate-50/30 rounded-xl p-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all duration-200";
+  const errorInputStyle = "w-full border border-rose-400 bg-rose-50/10 rounded-xl p-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all duration-200";
+  const baseSelectStyle = "w-full border border-slate-200 bg-slate-50/30 rounded-xl p-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all duration-200 appearance-none cursor-pointer";
+
   const [form, setForm] = useState<JobData>(formatInitialDataForInput(initialData) || emptyJob);
   const [loading, setLoading] = useState(false);
   // Di dalam komponen JobForm, update definisi state errors:
-const [errors, setErrors] = useState<{ 
-  deadline?: string; 
-  plannedApplyDate?: string; 
-  openingDate?: string // Tambahkan baris ini
-}>({});
-  const validateDates = (deadline: string, plannedApply: string, opening: string) => {
-const newErrors: { 
+  const [errors, setErrors] = useState<{ 
     deadline?: string; 
     plannedApplyDate?: string; 
-    openingDate?: string 
-  } = {};
+    openingDate?: string // Tambahkan baris ini
+  }>({});
+    const validateDates = (deadline: string, plannedApply: string, opening: string) => {
+  const newErrors: { 
+      deadline?: string; 
+      plannedApplyDate?: string; 
+      openingDate?: string 
+    } = {};
 
   const dDate = deadline ? new Date(deadline) : null;
   const pDate = plannedApply ? new Date(plannedApply) : null;
@@ -92,18 +132,17 @@ const newErrors: {
     newErrors.deadline = 'Deadline tidak boleh mendahului rencana apply.';
   }
 
-setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+  setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
   
-  const isValid = validateDates(form.deadline, form.plannedApplyDate, form.openingDate);
-  if (!isValid) return;
-
+    const isValid = validateDates(form.deadline, form.plannedApplyDate, form.openingDate);
+    if (!isValid) return;
     setLoading(true);
-    
+      
     // ================= SINKRONISASI OTOMATIS STATUS SEBELUM KIRIM =================
     let payloadForm = { ...form };
     
@@ -145,22 +184,41 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   };
 
- const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  const { name, value } = e.target;
-  
-  setForm((prev) => {
-    const updatedForm = { ...prev, [name]: value };
-    // Validasi ulang saat salah satu tanggal diubah
-    if (['deadline', 'plannedApplyDate', 'openingDate'].includes(name)) {
-      validateDates(updatedForm.deadline, updatedForm.plannedApplyDate, updatedForm.openingDate);
-    }
-    return updatedForm;
-  });
-};
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    
+    setForm((prev) => {
+      const updatedForm = { ...prev, [name]: value };
+      // Validasi ulang saat salah satu tanggal diubah
+      if (['deadline', 'plannedApplyDate', 'openingDate'].includes(name)) {
+        validateDates(updatedForm.deadline, updatedForm.plannedApplyDate, updatedForm.openingDate);
+      }
+      return updatedForm;
+    });
+  };
+  const { openModal } = useModal();
+  // 1. Ganti handleDelete menjadi fungsi yang memicu modal
+  const handleDelete = () => {
+    if (!form.id) return; // Tidak bisa hapus jika data belum ada (form baru)
 
-  const baseInputStyle = "w-full border border-slate-200 bg-slate-50/30 rounded-xl p-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all duration-200";
-  const errorInputStyle = "w-full border border-rose-400 bg-rose-50/10 rounded-xl p-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all duration-200";
-  const baseSelectStyle = "w-full border border-slate-200 bg-slate-50/30 rounded-xl p-2.5 text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all duration-200 appearance-none cursor-pointer";
+    openModal({
+      title: "Hapus Lowongan?",
+      message: "Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/jobs/${form.id}`, { method: 'DELETE' });
+          if (res.ok) {
+            router.push('/');
+            router.refresh();
+          } else {
+            throw new Error('Gagal menghapus data');
+          }
+        } catch (error) {
+          alert("Terjadi kesalahan saat menghapus");
+        }
+      }
+    });
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12 animate-fade-in">
@@ -269,38 +327,62 @@ const handleSubmit = async (e: React.FormEvent) => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Batas Akhir (Deadline) <span className="text-rose-500">*</span></label>
-              <input
-                type="date"
+              <ProfessionalDateInput
+                label="Batas Akhir (Deadline)"
                 name="deadline"
                 value={form.deadline}
                 onChange={handleChange}
+                error={errors.deadline}
                 required
-                className={errors.deadline ? errorInputStyle : baseInputStyle}
               />
-              {errors.deadline && (
+            </div>
+            <div>
+              <ProfessionalDateInput
+                label="Tanggal Pembukaan Lowongan"
+                name="openingDate"
+                value={form.openingDate}
+                onChange={handleChange}
+                error={errors.openingDate}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Level Prioritas</label>
+              <div className="relative">
+                <select name="priority" value={form.priority} onChange={handleChange} className={baseSelectStyle}>
+                  {Object.values(Priority).map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">▼</div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Alur Kerja</label>
+              <div className="relative">
+                <select name="status" value={form.status} onChange={handleChange} className={baseSelectStyle}>
+                  {Object.values(JobStatus).map((s) => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">▼</div>
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Estimasi Durasi Kontrak Pekerjaan (Opsional)</label>
+              <input
+                name="duration"
+                value={form.duration}
+                onChange={handleChange}
+                placeholder="e.g. 6 Bulan Intern, Kontrak Tetap"
+                className={baseInputStyle}
+              />
+              {errors.openingDate && (
                 <div className="flex items-center gap-1.5 text-rose-600 text-[11px] font-medium mt-1.5">
-                  <AlertCircle size={13} className="flex-shrink-0" />
-                  <span>{errors.deadline}</span>
+                  <AlertCircle size={13} />
+                  <span>{errors.openingDate}</span>
                 </div>
               )}
             </div>
-            <div>
-  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal Pembukaan Lowongan</label>
-  <input
-    type="date"
-    name="openingDate"
-    value={form.openingDate}
-    onChange={handleChange}
-    className={errors.openingDate ? errorInputStyle : baseInputStyle}
-  />
-  {errors.openingDate && (
-    <div className="flex items-center gap-1.5 text-rose-600 text-[11px] font-medium mt-1.5">
-      <AlertCircle size={13} />
-      <span>{errors.openingDate}</span>
-    </div>
-  )}
-</div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Level Prioritas</label>
               <div className="relative">
@@ -385,7 +467,19 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
 
         {/* FOOTER ACTION BUTTONS */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
+          {/* Tombol Hapus (Ditempatkan di kiri untuk memisahkan dari aksi utama) */}
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={loading}
+            className="flex items-center gap-1.5 border border-red-200 text-red-600 text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50 mr-auto"
+          >
+            <Trash2 size={16} />
+            <span>Hapus</span>
+          </button>
+
+          {/* Tombol Batal */}
           <button
             type="button"
             disabled={loading}
@@ -396,15 +490,16 @@ const handleSubmit = async (e: React.FormEvent) => {
             <span>Batal</span>
           </button>
           
+          {/* Tombol Simpan */}
           <button
             type="submit"
             disabled={loading || Object.keys(errors).length > 0}
-            className="flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-blue-700 active:scale-[0.98] shadow-sm hover:shadow-md hover:shadow-blue-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            className="flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-blue-700 active:scale-[0.98] shadow-sm transition-all disabled:opacity-50"
           >
             {loading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>Menyimpan ke Database...</span>
+                <span>Menyimpan...</span>
               </>
             ) : (
               <>

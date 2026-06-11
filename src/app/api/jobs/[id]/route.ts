@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, JobStatus } from '@prisma/client';
+import { verifyJWT } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -83,5 +84,35 @@ export async function PATCH(
       { message: 'Gagal melakukan modifikasi data lowongan.', error: error.message },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const token = request.cookies.get('token')?.value;
+  const user = token ? await verifyJWT(token) : null;
+  
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const { id } = await params;
+
+    // Pastikan user hanya bisa menghapus data miliknya sendiri
+    const deletedJob = await prisma.job.deleteMany({
+      where: {
+        id: id,
+        userId: user.id,
+      },
+    });
+
+    if (deletedJob.count === 0) {
+      return NextResponse.json({ error: 'Lowongan tidak ditemukan' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Lowongan berhasil dihapus' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Gagal menghapus lowongan' }, { status: 500 });
   }
 }
