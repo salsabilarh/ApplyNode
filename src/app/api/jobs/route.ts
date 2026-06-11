@@ -1,87 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { JobStatus } from '@prisma/client';
+import { verifyJWT } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status') as JobStatus | null;
-  const platform = searchParams.get('platform');
-  const priority = searchParams.get('priority');
-  const search = searchParams.get('search');
-  const sort = searchParams.get('sort') || 'deadline';
+  const token = request.cookies.get('token')?.value;
+  const user = token ? await verifyJWT(token) : null;
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const where: any = {};
-  if (status) where.status = status;
-  if (platform) where.platform = platform;
-  if (priority) where.priority = priority;
-  if (search) {
-    where.OR = [
-      { position: { contains: search } },
-      { company: { contains: search } },
-      { description: { contains: search } },
-    ];
+  try {
+    const now = new Date();
+
+    // 1. OTOMATISASI: Update status ke CLOSED jika waktu sekarang sudah melewati deadline
+    // dan status sebelumnya bukan CLOSED.
+    await prisma.job.updateMany({
+      where: {
+        userId: user.id,
+        status: { not: 'CLOSED' },
+        deadline: { lt: now }, // lt = less than (kurang dari waktu sekarang)
+      },
+      data: {
+        status: 'CLOSED',
+      },
+    });
+
+    // 2. Ambil data jobs milik user yang sudah ter-update paling aktual
+    const jobs = await prisma.job.findMany({
+      where: { userId: user.id },
+      orderBy: { deadline: 'asc' },
+    });
+
+    return NextResponse.json(jobs);
+  } catch (error) {
+    return NextResponse.json({ error: 'Gagal memuat data lowongan' }, { status: 500 });
   }
-
-  let orderBy: any = { deadline: 'asc' };
-  if (sort === 'createdAt') orderBy = { createdAt: 'desc' };
-  else if (sort === 'priority') orderBy = { priority: 'asc' };
-
-  const jobs = await prisma.job.findMany({
-    where,
-    orderBy,
-  });
-
-  return NextResponse.json(jobs);
 }
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
-  const user = token ? await verifyJWT(token) : null; // Pastikan fungsi ini tersedia
+  const user = token ? await verifyJWT(token) : null;
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const body = await request.json();
-    const {
-      position,
-      jobType,
-      company,
-      platform,
-      sourceLink,
-      description,
-      duration,
-      deadline,
-      openingDate,
-      priority,
-      status,
-      plannedApplyDate,
-      plannedApplyTime,
-      applyNotes,
-      notes,
-    } = body;
+    
+    // Validasi penentuan status awal saat pembuatan data baru (jika langsung backdate/lewat deadline)
+    const deadlineDate = new Date(body.deadline);
+    const initialStatus = deadlineDate < new Date() ? 'CLOSED' : (body.status || 'TO_BE_APPLY');
 
     const job = await prisma.job.create({
       data: {
-        userId: body.userId, // Pastikan userId disertakan dalam body request
-        position,
-        jobType,
-        company,
-        platform,
-        sourceLink,
-        description,
-        duration,
-        deadline: new Date(deadline),
-        openingDate: openingDate ? new Date(openingDate) : undefined,
-        priority,
-        status: status || 'TO_BE_APPLY',
-        plannedApplyDate: plannedApplyDate ? new Date(plannedApplyDate) : null,
-        plannedApplyTime,
-        applyNotes,
-        notes,
+        userId: user.id,
+        position: body.position,
+        jobType: body.jobType,
+        company: body.company,
+        platform: body.platform,
+        sourceLink: body.sourceLink,
+        description: body.description,
+        deadline: deadlineDate,
+        priority: body.priority,
+        status: initialStatus,
       },
     });
-
     return NextResponse.json(job, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal menambah lowongan' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal menyimpan lowongan' }, { status: 500 });
   }
 }
