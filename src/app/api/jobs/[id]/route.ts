@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient, JobStatus } from '@prisma/client';
 import { verifyJWT } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
 
