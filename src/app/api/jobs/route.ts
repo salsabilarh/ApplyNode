@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Status } from '@prisma/client';
+import { JobStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status') as Status | null;
+  const status = searchParams.get('status') as JobStatus | null;
   const platform = searchParams.get('platform');
   const priority = searchParams.get('priority');
   const search = searchParams.get('search');
@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const token = request.cookies.get('token')?.value;
+  const user = token ? await verifyJWT(token) : null; // Pastikan fungsi ini tersedia
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await request.json();
     const {
@@ -57,6 +61,7 @@ export async function POST(request: NextRequest) {
 
     const job = await prisma.job.create({
       data: {
+        userId: body.userId, // Pastikan userId disertakan dalam body request
         position,
         jobType,
         company,
