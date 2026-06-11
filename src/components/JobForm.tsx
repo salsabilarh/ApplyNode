@@ -383,38 +383,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
                 </div>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Level Prioritas</label>
-              <div className="relative">
-                <select name="priority" value={form.priority} onChange={handleChange} className={baseSelectStyle}>
-                  {Object.values(Priority).map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">▼</div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Status Alur Kerja</label>
-              <div className="relative">
-                <select name="status" value={form.status} onChange={handleChange} className={baseSelectStyle}>
-                  {Object.values(JobStatus).map((s) => (
-                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">▼</div>
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Estimasi Durasi Kontrak Pekerjaan (Opsional)</label>
-              <input
-                name="duration"
-                value={form.duration}
-                onChange={handleChange}
-                placeholder="e.g. 6 Bulan Intern, Kontrak Tetap"
-                className={baseInputStyle}
-              />
-            </div>
           </div>
         </div>
 
