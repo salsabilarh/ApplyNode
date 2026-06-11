@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Calendar, PlusCircle, TableProperties } from 'lucide-react';
+import { LayoutGrid, Calendar, PlusCircle, TableProperties, User } from 'lucide-react';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -11,6 +11,7 @@ export default function BottomNav() {
     { href: '/planner', label: 'Planner', icon: Calendar },
     { href: '/jobs', label: 'Data', icon: TableProperties }, // <-- Menu Baru untuk URL /jobs pada Mobile
     { href: '/jobs/new', label: 'Tambah', icon: PlusCircle },
+    { href: '/profile', label: 'Profil', icon: User },
   ];
 
   return (

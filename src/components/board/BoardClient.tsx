@@ -243,9 +243,9 @@ export default function BoardClient() {
   // 2. Hitung jumlah lamaran yang sudah masuk tahap "Applied"
   const appliedCount = jobs.filter(j => activeApplyStatuses.includes(j.status)).length;
 
-// 3. Kalkulasi Success Rate (Target Finis)
-// Sekarang rasio dihitung dari berapa banyak yang sudah berhasil 'Applied' dari total lowongan
-const successRate = totalJobsCount > 0 ? Math.round((appliedCount / totalJobsCount) * 100) : 0;
+  // 3. Kalkulasi Success Rate (Target Finis)
+  // Sekarang rasio dihitung dari berapa banyak yang sudah berhasil 'Applied' dari total lowongan
+  const successRate = totalJobsCount > 0 ? Math.round((appliedCount / totalJobsCount) * 100) : 0;
   if (loading) {
     return (
       <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-2 select-none">

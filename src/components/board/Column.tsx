@@ -13,43 +13,22 @@ interface ColumnProps {
   onStatusChange: (id: string, nextStatus: any) => void;
 }
 
-export default function Column({ id, label, colorClass, jobs, quantity, percentage }: ColumnProps) {
+export default function Column({ id, label, colorClass, jobs, quantity }: ColumnProps) {
   return (
-    <div className="flex flex-col w-full h-full">
-      {/* Header Sub-Kolom */}
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
       <div className={`px-3 py-2 flex items-center justify-between border-b border-slate-100 ${colorClass}`}>
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-[11px] tracking-tight">{label}</span>
-          <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-white/60 rounded-md">
-            {quantity}
-          </span>
-        </div>
+        <span className="font-bold text-[10px] uppercase tracking-wider">{label}</span>
+        <span className="px-2 py-0.5 text-[9px] bg-white/50 rounded-full font-bold">{quantity}</span>
       </div>
 
-      {/* Area Droppable Kontainer Adaptif */}
       <Droppable droppableId={id}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`p-2 flex flex-col gap-2 transition-all duration-300 rounded-b-xl ${
-              snapshot.isDraggingOver ? 'bg-slate-100/70' : 'bg-transparent'
-            } ${
-              jobs.length === 0 
-                ? 'min-h-[48px] justify-center items-center' 
-                : 'h-auto min-h-[120px]' 
-            }`}
+            className={`p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50/30' : ''}`}
           >
-            {jobs.length === 0 ? (
-              <p className="text-[10px] text-slate-300 font-medium tracking-wide pointer-events-none select-none animate-pulse">
-                Drop di sini
-              </p>
-            ) : (
-              jobs.map((job, index) => (
-                // Cukup panggil JobCard dan oper property index ke dalamnya
-                <JobCard key={job.id} job={job} index={index} />
-              ))
-            )}
+            {jobs.map((job, index) => <JobCard key={job.id} job={job} index={index} />)}
             {provided.placeholder}
           </div>
         )}

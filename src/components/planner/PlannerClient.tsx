@@ -171,32 +171,26 @@ export default function PlannerClient() {
 
       {/* Main Drag & Drop Workspace */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex flex-col lg:flex-row gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           
-          {/* Backlog Side Pool */}
+          {/* Backlog Side Pool - Dibuat lebih elegan */}
           {showBacklog && (
-            <div className="w-full lg:w-64 flex-shrink-0">
+            <div className="w-full lg:w-72 flex-shrink-0">
               <UnscheduledPool jobs={unscheduledJobs} />
             </div>
           )}
 
-          {/* Grid Kalender Sebenarnya */}
-          <div className="flex-1 w-full bg-white border border-slate-200/60 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.01)] overflow-hidden">
-            {/* Header Nama Hari */}
-            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/60 text-center py-2.5">
+          {/* Grid Kalender */}
+          <div className="flex-1 w-full bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
               {dayNames.map((day, idx) => (
-                <span 
-                  key={day} 
-                  className={`text-[10px] font-bold uppercase tracking-wider ${
-                    idx >= 5 ? 'text-rose-500' : 'text-slate-400'
-                  }`}
-                >
+                <div key={day} className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   {day}
-                </span>
+                </div>
               ))}
             </div>
 
-            {/* Grid Box Tanggal */}
+            {/* Grid Box Tanggal dengan aspek rasio yang lebih baik */}
             <div className="grid grid-cols-7 bg-slate-100 gap-[1px]">
               {calendarDays.map((date) => (
                 <DayColumn
@@ -208,7 +202,6 @@ export default function PlannerClient() {
               ))}
             </div>
           </div>
-
         </div>
       </DragDropContext>
     </div>

@@ -49,56 +49,24 @@ export default function JobCard({ job, index }: { job: Job; index: number }) {
   };
 
   return (
-    <Draggable draggableId={job.id} index={index} isDragDisabled={isClosed}>
+    <Draggable draggableId={job.id} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          style={{ ...provided.draggableProps.style }}
-          className={`interactive-card p-4 bg-white border border-slate-100 rounded-xl relative select-none transition-all duration-200 ${
-            isClosed ? 'opacity-65 bg-slate-50/60 border-slate-200/60 cursor-not-allowed' : 'cursor-grab hover:border-slate-300'
-          }`}
+          className={`group p-3 bg-white border border-slate-100 rounded-lg hover:shadow-md transition-all ${snapshot.isDragging ? 'shadow-xl ring-2 ring-blue-500' : ''}`}
         >
-          <div className="flex justify-between items-start gap-2 mb-1.5">
-            <h3 className={`font-semibold text-[14px] ${isClosed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
-              {job.position}
-            </h3>
-            {isUrgent && <span className="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-bold animate-pulse">H-{daysLeft}</span>}
+          <h3 className="font-bold text-xs text-slate-800 line-clamp-2 mb-1">{job.position}</h3>
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-3">
+            <Building2 size={11} /> {job.company}
           </div>
-
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3">
-            <Building2 size={13} />
-            <span className="line-clamp-1">{job.company}</span>
-          </div>
-
-          <div className="pt-2.5 border-t border-slate-100 flex justify-between items-center">
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${priorityMeta.wrapper}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${priorityMeta.dot}`} />
-              {priorityMeta.label}
-            </span>
-            
-            <div className="flex items-center gap-1">
-              {/* Tombol Hapus dengan Confirmation Modal */}
-              <button 
-                onClick={() => openModal({
-                  onConfirm: handleDelete,
-                  title: "Hapus Lowongan?",
-                  message: "Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan."
-                })}
-                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                title="Hapus Lowongan"
-              >
-                <Trash2 size={14} />
-              </button>
-
-              <Link 
-                href={`/jobs/${job.id}/edit`} 
-                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                title="Edit Lowongan"
-              >
-                <ArrowUpRight size={14} />
-              </Link>
+          
+          <div className="flex justify-between items-center border-t border-slate-50 pt-2">
+            <span className="text-[9px] font-bold uppercase text-slate-400">{job.priority}</span>
+            <div className="flex gap-1">
+              <button onClick={handleDelete} className="p-1.5 text-slate-300 hover:text-red-500 rounded hover:bg-red-50"><Trash2 size={13}/></button>
+              <Link href={`/jobs/${job.id}/edit`} className="p-1.5 text-slate-300 hover:text-blue-600 rounded hover:bg-blue-50"><ArrowUpRight size={13}/></Link>
             </div>
           </div>
         </div>

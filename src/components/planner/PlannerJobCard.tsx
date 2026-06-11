@@ -35,7 +35,7 @@ export default function PlannerJobCard({ job, index, isScheduled }: PlannerJobCa
           {/* Dot Indicator Prioritas */}
           <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${priorityColors || 'bg-slate-300'}`} />
           
-          <div className="min-w-0 flex-1 leading-tight pr-4">
+          <div className="bg-white min-w-0 flex-1 leading-tight pr-4">
             <h4 className="font-bold text-[10px] text-slate-800 tracking-tight line-clamp-1">
               {job.position}
             </h4>

@@ -1,21 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   BriefcaseBusiness, 
   LogOut, 
   LayoutGrid, 
   Calendar, 
-  TableProperties 
+  TableProperties, 
+  User,
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
 import LogoutModal from './LogoutModal';
+import { useModal } from '@/context/ModalContext'; // Pastikan path ini benar
 
 export default function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
-  
+  const [userData, setUserData] = useState({ name: 'Loading...', email: '...' });
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { openModal } = useModal();
+  const dropdownRef = useRef<HTMLDivElement>(null);
   // State untuk mengontrol kemunculan Pop-up Modal Kustom & Loading State Logout
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -47,6 +54,44 @@ export default function TopBar() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    setIsDropdownOpen(false);
+    openModal({
+      title: "Hapus Akun Permanen?",
+      message: "Tindakan ini akan menghapus akun beserta seluruh data Anda. Tidak dapat dibatalkan.",
+      onConfirm: async () => {
+        await fetch('/api/user', { method: 'DELETE' });
+        window.location.href = '/register';
+      }
+    });
+  };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/user');
+        if (res.ok) {
+          const data = await res.json();
+          setUserData(data);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data user");
+      }
+    };
+
+    if (isDropdownOpen) {
+      fetchUser();
+    }
+  }, [isDropdownOpen]);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setIsDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <>
       <header className="hidden md:flex items-center justify-between bg-white/75 backdrop-blur-md border-b border-slate-100 px-8 py-3.5 sticky top-0 z-40 shadow-[0_1px_2px_rgba(0,0,0,0.01)] select-none">
@@ -61,8 +106,8 @@ export default function TopBar() {
         </Link>
 
         {/* Navigation & Primed CTA */}
-        <nav className="flex gap-7 items-center">
-          <div className="flex gap-6 items-center">
+        <nav className="flex gap-6 items-center">
+          <div className="flex gap-4 items-center">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -85,25 +130,43 @@ export default function TopBar() {
           
           {/* Divider */}
           <span className="w-px h-4 bg-slate-200" aria-hidden="true" />
+          {/* Dropdown Profil */}
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full hover:bg-slate-50 transition-all border border-slate-100"
+              >
+                <User size={16} className="text-slate-600" />
+                <ChevronDown size={14} className="text-slate-400" />
+              </button>
 
-          {/* Tombol Logout - Sekarang memancing Pop-up Modal Kustom muncul */}
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors group active:scale-95"
-            title="Log Out dari Sistem"
-          >
-            <LogOut size={16} className="group-hover:translate-x-0.5 transition-transform" />
-          </button>      
-        </nav>
-      </header>
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
+                  {/* Menampilkan data dinamis */}
+                  <div className="px-3 py-2 border-b border-slate-50 mb-1">
+                    <p className="text-sm font-bold text-slate-900 truncate">{userData.name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{userData.email}</p>
+                  </div>
+                  
+                  <button onClick={() => setIsModalOpen(true)} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg">
+                    <LogOut size={14} /> Keluar dari Akun
+                  </button>
+                  <button onClick={handleDeleteAccount} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg">
+                    <Trash2 size={14} /> Hapus Akun Permanen
+                  </button>
+                </div>
+              )}
+            </div>
+            </nav>
+          </header>
 
-      {/* Meletakkan Modal Pop-up di level root agar terhindar dari pemangkasan layout CSS parent */}
-      <LogoutModal
-        isOpen={isModalOpen}
-        isLoggingOut={isLoggingOut}
-        onClose={() => setIsModalOpen(false)}
-        onConfirm={handleLogoutConfirm}
-      />
+          {/* Meletakkan Modal Pop-up di level root agar terhindar dari pemangkasan layout CSS parent */}
+          <LogoutModal
+            isOpen={isModalOpen}
+            isLoggingOut={isLoggingOut}
+            onClose={() => setIsModalOpen(false)}
+            onConfirm={handleLogoutConfirm}
+          />
     </>
   );
 }
