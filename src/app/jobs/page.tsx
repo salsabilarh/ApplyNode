@@ -33,6 +33,7 @@ export default async function MasterJobsPage() {
   // Normalisasi data
   const jobs = rawJobs.map(job => ({
     id: job.id,
+    user_id: job.userId,
     position: job.position,
     company: job.company,
     platform: job.platform,
