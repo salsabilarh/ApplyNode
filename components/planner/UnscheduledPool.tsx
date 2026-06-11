@@ -4,7 +4,11 @@ import PlannerJobCard from './PlannerJobCard';
 import { Inbox } from 'lucide-react';
 import { Job } from '@/types/job';
 
-export default function UnscheduledPool({ jobs }: { jobs: Job[] }) {
+interface UnscheduledPoolProps {
+  jobs: Job[];
+}
+
+export default function UnscheduledPool({ jobs }: UnscheduledPoolProps) {
   return (
     <div className="w-full md:w-64 flex-shrink-0 bg-slate-50/60 rounded-2xl border border-slate-200/50 flex flex-col min-h-[460px]">
       {/* Pool Header */}
