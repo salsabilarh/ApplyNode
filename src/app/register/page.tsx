@@ -22,10 +22,13 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
+      
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal registrasi');
       
-      router.push('/login');
+      // Langsung arahkan ke dashboard/home karena token sudah otomatis tersimpan via cookie
+      router.push('/jobs'); 
+      router.refresh(); // Memastikan state navigasi terupdate
     } catch (err: any) {
       setError(err.message);
     } finally {

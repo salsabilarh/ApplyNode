@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isAuthPage = pathname === '/login' || pathname === '/register';
 
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <body className="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col overflow-x-hidden">
         {/* ModalProvider harus membungkus segalanya agar tersedia di mana saja */}
         <ModalProvider>

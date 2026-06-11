@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { createJWT } from '@/lib/auth'; // Pastikan fungsi ini tersedia
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,11 +17,27 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    await prisma.user.create({
+    
+    // 1. Buat User baru
+    const newUser = await prisma.user.create({
       data: { name, email, password: hashedPassword },
     });
 
-    return NextResponse.json({ message: 'Registrasi akun berhasil' }, { status: 201 });
+    // 2. Buat Token JWT (Sama seperti logika di API Login)
+    const token = await createJWT({ id: newUser.id, email: newUser.email });
+
+    // 3. Buat Response dan Set Cookie
+    const response = NextResponse.json({ message: 'Registrasi sukses' }, { status: 201 });
+    
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 1 hari
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     return NextResponse.json({ error: 'Gagal melakukan registrasi' }, { status: 500 });
   }
