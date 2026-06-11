@@ -1,4 +1,3 @@
-// src/app/api/user/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyJWT } from '@/lib/auth';
@@ -9,8 +8,14 @@ export async function GET() {
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const userPayload = await verifyJWT(token);
+  
+  // PERBAIKAN: Cek apakah userPayload valid
+  if (!userPayload) {
+    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+  }
+
   const user = await prisma.user.findUnique({
-    where: { id: userPayload.id },
+    where: { id: userPayload.id }, // TypeScript sekarang tahu userPayload tidak null
     select: { name: true, email: true, createdAt: true }
   });
 
@@ -23,7 +28,11 @@ export async function DELETE() {
 
   const userPayload = await verifyJWT(token);
   
-  // Karena onDelete: Cascade di schema, hapus user otomatis hapus semua jobs
+  // PERBAIKAN: Cek apakah userPayload valid
+  if (!userPayload) {
+    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+  }
+  
   await prisma.user.delete({ where: { id: userPayload.id } });
   
   const response = NextResponse.json({ message: 'Akun berhasil dihapus' });
