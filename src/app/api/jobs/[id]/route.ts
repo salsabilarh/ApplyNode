@@ -89,7 +89,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // <--- Ubah menjadi Promise
 ) {
   const token = request.cookies.get('token')?.value;
   const user = token ? await verifyJWT(token) : null;
@@ -97,7 +97,8 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { id } = await params;
+    // Gunakan await untuk mengambil ID dari Promise params
+    const { id } = await params; 
 
     // Pastikan user hanya bisa menghapus data miliknya sendiri
     const deletedJob = await prisma.job.deleteMany({
