@@ -35,8 +35,12 @@ export default function PlannerJobCard({ job, index, isScheduled }: PlannerJobCa
         >
           <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${priorityColors || 'bg-slate-300'}`} />
           <div className="bg-white min-w-0 flex-1 leading-tight pr-4">
-            <h4 className="font-bold text-[10px] text-slate-800 tracking-tight line-clamp-1">{job.position}</h4>
-            <p className="text-[9px] text-slate-400 font-medium truncate">{job.company}</p>
+            <h4 className="font-bold text-[10px] text-slate-800 tracking-tight line-clamp-1">
+              {job.position}
+            </h4>
+            <p className="text-[9px] text-slate-400 font-medium truncate">
+              {job.company}
+            </p>
           </div>
           <Link
             href={`/jobs/${job.id}/edit`}

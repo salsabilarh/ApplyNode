@@ -5,16 +5,22 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import UnscheduledPool from './UnscheduledPool';
 import DayColumn from './DayColumn';
 import { 
-  format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, addMonths, subMonths
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  addMonths, 
+  subMonths
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { CalendarDays, CalendarCheck, RefreshCw, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import { Job } from '@/types/job';
 
 /**
- * Interactive monthly planner that allows drag & drop scheduling of job applications.
- * Shows a backlog pool and a calendar grid.
+ * Client component for the monthly planner view.
+ * Allows drag & drop scheduling of job applications.
  */
 export default function PlannerClient() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -25,11 +31,25 @@ export default function PlannerClient() {
 
   const fetchJobs = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch('/api/jobs');
+      if (!res.ok) throw new Error('Gagal memuat data');
       const data = await res.json();
-      setJobs(Array.isArray(data) ? data : []);
+      // Handle both direct array and { success: true, data: [] } format
+      const jobsData = Array.isArray(data) ? data : (data.data || []);
+      
+      // Ensure date strings are valid (API returns ISO strings)
+      const normalizedJobs = jobsData.map((job: any) => ({
+        ...job,
+        deadline: job.deadline,
+        openingDate: job.openingDate || null,
+        plannedApplyDate: job.plannedApplyDate || null,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      }));
+      setJobs(normalizedJobs);
     } catch (err) {
-      console.error('Gagal memuat data:', err);
+      console.error('Gagal memuat data planner:', err);
       setJobs([]);
     } finally {
       setLoading(false);
@@ -47,10 +67,10 @@ export default function PlannerClient() {
     const previousJobs = [...jobs];
     let newPlannedDate: string | null = null;
     if (destination.droppableId !== 'unscheduled') {
-      newPlannedDate = destination.droppableId;
+      newPlannedDate = destination.droppableId; // YYYY-MM-DD
     }
 
-    // Optimistic update
+    // Optimistic UI update - update plannedApplyDate as string
     setJobs(prev =>
       prev.map(job =>
         job.id === draggableId ? { ...job, plannedApplyDate: newPlannedDate } : job
@@ -67,13 +87,14 @@ export default function PlannerClient() {
         }),
       });
       if (!response.ok) throw new Error('Gagal menyimpan jadwal');
+      await fetchJobs(); // Refresh to ensure consistency
     } catch (error) {
       setJobs(previousJobs);
       alert('Gagal menyinkronkan jadwal. Perubahan dibatalkan.');
     } finally {
       setSyncing(false);
     }
-  }, [jobs]);
+  }, [jobs, fetchJobs]);
 
   const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
   const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
@@ -81,7 +102,7 @@ export default function PlannerClient() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse p-1">
-        <div className="h-14 bg-slate-200 rounded-2xl w-full"></div>
+        <div className="h-14 bg-slate-200 rounded-2xl w-full" />
         <div className="h-[500px] bg-slate-100/80 rounded-2xl border border-slate-200/40 w-full" />
       </div>
     );
@@ -100,7 +121,7 @@ export default function PlannerClient() {
 
   const getJobsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return safeJobs.filter(job => job.plannedApplyDate?.startsWith(dateStr));
+    return safeJobs.filter(job => job.plannedApplyDate === dateStr);
   };
 
   const scheduledCount = safeJobs.filter(j => j.plannedApplyDate).length;
@@ -108,6 +129,7 @@ export default function PlannerClient() {
 
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto">
+      {/* Header Widget */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm gap-4">
         <div className="flex items-center gap-3">
           <CalendarDays size={22} className="text-violet-600" strokeWidth={2.2} />
@@ -134,27 +156,33 @@ export default function PlannerClient() {
           >
             <Inbox size={13} /> {showBacklog ? 'Sembunyikan Backlog' : 'Tampilkan Backlog'}
           </button>
+
+          {/* Month Navigator */}
           <div className="flex items-center border border-slate-200 bg-slate-50/50 p-1 rounded-xl">
-            <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all">
+            <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Bulan sebelumnya">
               <ChevronLeft size={16} />
             </button>
             <span className="text-xs font-bold text-slate-800 px-3 min-w-[110px] text-center capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: id })}
             </span>
-            <button onClick={nextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all">
+            <button onClick={nextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Bulan berikutnya">
               <ChevronRight size={16} />
             </button>
           </div>
         </div>
       </div>
 
+      {/* Main Drag & Drop Workspace */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Backlog Side Pool */}
           {showBacklog && (
             <div className="w-full lg:w-72 flex-shrink-0">
               <UnscheduledPool jobs={unscheduledJobs} />
             </div>
           )}
+
+          {/* Calendar Grid */}
           <div className="flex-1 w-full bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
             <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
               {dayNames.map(day => (

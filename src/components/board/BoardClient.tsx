@@ -7,15 +7,8 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import Column from './Column';
 import DeadlineModal from './DeadlineModal';
 import { 
-  Loader2, 
-  Briefcase, 
-  CheckCircle2, 
-  BarChart3, 
-  Plus,
-  Compass,
-  FileSearch,
-  Users2,
-  Award
+  Loader2, Briefcase, CheckCircle2, BarChart3, Plus,
+  Compass, FileSearch, Users2, Award
 } from 'lucide-react';
 
 interface Job {
@@ -28,7 +21,7 @@ interface Job {
   status: 'BACKLOG' | 'APPLYING' | 'APPLIED' | 'ADMIN_SCREENING' | 'ASSESSMENT' | 'FGD_LGD' | 'INTERVIEW_HR' | 'INTERVIEW_USER' | 'INTERVIEW_EXECUTIVE' | 'MEDICAL_CHECK_UP' | 'OFFERING' | 'CLOSED';
 }
 
-// Vertical phase architecture for recruitment workflow
+// Recruitment phase architecture (unchanged)
 const RECRUITMENT_PHASES = [
   {
     id: 'preparation',
@@ -84,7 +77,6 @@ const RECRUITMENT_PHASES = [
   }
 ];
 
-// Status considered as "active application in progress"
 const ACTIVE_APPLY_STATUSES = [
   'APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD',
   'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE',
@@ -103,10 +95,6 @@ export default function BoardClient() {
   } | null>(null);
   const router = useRouter();
 
-  /**
-   * Automatically close expired jobs that are still in BACKLOG or APPLYING status.
-   * This ensures data consistency and prevents outdated applications.
-   */
   const autoCloseExpiredJobs = useCallback(async (fetchedJobs: Job[]) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -120,22 +108,23 @@ export default function BoardClient() {
 
     if (expiredJobs.length === 0) return;
 
-    // Batch close expired jobs
-    await fetch('/api/jobs/batch-close', {
-      method: 'POST',
-      body: JSON.stringify({ ids: expiredJobs.map(j => j.id) })
-    });
-
-    const updatePromises = expiredJobs.map(job =>
-      fetch(`/api/jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CLOSED' }),
-      })
-    );
-
+    // Batch close - background operation, don't block UI
     try {
+      await fetch('/api/jobs/batch-close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: expiredJobs.map(j => j.id) }),
+      });
+      
+      const updatePromises = expiredJobs.map(job =>
+        fetch(`/api/jobs/${job.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'CLOSED' }),
+        })
+      );
       await Promise.all(updatePromises);
+      
       setJobs(prev =>
         prev.map(job => {
           const deadline = new Date(job.deadline);
@@ -147,7 +136,7 @@ export default function BoardClient() {
       );
       router.refresh();
     } catch (error) {
-      console.error('Failed to auto-close expired jobs:', error);
+      console.error('Auto-close expired jobs failed:', error);
     }
   }, [router]);
 
@@ -157,8 +146,10 @@ export default function BoardClient() {
       const res = await fetch('/api/jobs');
       if (!res.ok) throw new Error('Gagal mengambil data lowongan');
       const data = await res.json();
-      setJobs(data);
-      await autoCloseExpiredJobs(data);
+      // Handle both direct array and { success: true, data: [] } format
+      const jobsData = Array.isArray(data) ? data : (data.data || []);
+      setJobs(jobsData);
+      await autoCloseExpiredJobs(jobsData);
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan sistem');
     } finally {
@@ -193,7 +184,7 @@ export default function BoardClient() {
       router.refresh();
     } catch (err: any) {
       alert(err.message || 'Gagal memperbarui data');
-      await fetchJobs(); // revert on error
+      await fetchJobs(); // revert optimistic update
     }
   }, [fetchJobs, router]);
 
@@ -212,7 +203,6 @@ export default function BoardClient() {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
     await handleStatusChange(draggableId, destination.droppableId as Job['status']);
   }, [handleStatusChange]);
 

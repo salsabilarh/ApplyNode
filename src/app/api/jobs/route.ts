@@ -1,68 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
 import { verifyJWT } from '@/lib/auth';
+import { getJobsByUser, createJob } from '@/services/jobService';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-helpers';
 
-export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const user = token ? await verifyJWT(token) : null;
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function GET(req: NextRequest) {
   try {
-    const now = new Date();
+    const token = req.cookies.get('token')?.value;
+    if (!token) return errorResponse('Unauthorized', 401);
+    const payload = await verifyJWT(token);
+    if (!payload) return errorResponse('Invalid token', 401);
 
-    // 1. OTOMATISASI: Update status ke CLOSED jika waktu sekarang sudah melewati deadline
-    // dan status sebelumnya bukan CLOSED.
-    await prisma.job.updateMany({
-      where: {
-        userId: user.id,
-        status: { not: 'CLOSED' },
-        deadline: { lt: now }, // lt = less than (kurang dari waktu sekarang)
-      },
-      data: {
-        status: 'CLOSED',
-      },
-    });
-
-    // 2. Ambil data jobs milik user yang sudah ter-update paling aktual
-    const jobs = await prisma.job.findMany({
-      where: { userId: user.id },
-      orderBy: { deadline: 'asc' },
-    });
-
-    return NextResponse.json(jobs);
+    const jobs = await getJobsByUser(payload.id);
+    return successResponse(jobs);
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal memuat data lowongan' }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
-export async function POST(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const user = token ? await verifyJWT(token) : null;
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    
-    // Validasi penentuan status awal saat pembuatan data baru (jika langsung backdate/lewat deadline)
-    const deadlineDate = new Date(body.deadline);
-    const initialStatus = deadlineDate < new Date() ? 'CLOSED' : (body.status || 'TO_BE_APPLY');
+    const token = req.cookies.get('token')?.value;
+    if (!token) return errorResponse('Unauthorized', 401);
+    const payload = await verifyJWT(token);
+    if (!payload) return errorResponse('Invalid token', 401);
 
-    const job = await prisma.job.create({
-      data: {
-        userId: user.id,
-        position: body.position,
-        jobType: body.jobType,
-        company: body.company,
-        platform: body.platform,
-        sourceLink: body.sourceLink,
-        description: body.description,
-        deadline: deadlineDate,
-        priority: body.priority,
-        status: initialStatus,
-      },
-    });
-    return NextResponse.json(job, { status: 201 });
+    const body = await req.json();
+    const newJob = await createJob(payload.id, body);
+    return successResponse(newJob, 201);
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal menyimpan lowongan' }, { status: 500 });
+    return handleApiError(error);
   }
 }

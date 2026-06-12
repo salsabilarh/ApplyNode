@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { JobType, Priority, JobStatus } from '@prisma/client';
 import { ArrowLeft, Save, XCircle, Loader2, Briefcase, Calendar, FileText, AlertCircle, Trash2 } from 'lucide-react';
@@ -134,12 +134,13 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payloadForm),
       });
+      
       if (res.ok) {
         router.push('/');
         router.refresh();
       } else {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Gagal menyimpan data.');
+        throw new Error(errorData.error || 'Gagal menyimpan data.');
       }
     } catch (error: any) {
       alert(`Gagal: ${error.message}`);

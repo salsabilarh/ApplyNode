@@ -1,22 +1,13 @@
-import JobForm from '@/components/JobForm';
+// app/(dashboard)/jobs/[id]/edit/page.tsx
+import JobForm from '@/components/jobs/JobForm';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 
-export default async function EditJobPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  // Menunggu resolusi data params dari arsitektur dinamis Next.js App Router
+export default async function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
-  const job = await prisma.job.findUnique({ 
-    where: { id } 
-  });
-  
+  const job = await prisma.job.findUnique({ where: { id } });
   if (!job) notFound();
 
-  // Memastikan transformasi data tanggal ter-normalisasi dengan aman untuk HTML5 Date Element (Pencegahan Bug Rendering)
   const initialData = {
     ...job,
     deadline: job.deadline ? job.deadline.toISOString().split('T')[0] : '',
