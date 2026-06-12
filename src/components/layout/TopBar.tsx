@@ -39,8 +39,8 @@ export default function TopBar() {
   const handleDeleteAccount = () => {
     setIsDropdownOpen(false);
     openModal({
-      title: 'Hapus Akun Permanen?',
-      message: 'Tindakan ini akan menghapus akun beserta seluruh data Anda. Tidak dapat dibatalkan.',
+      title: 'Delete Account Permanently?',
+      message: 'This action will delete your account and all associated data. It cannot be undone.',
       onConfirm: async () => {
         await fetch('/api/user', { method: 'DELETE' });
         window.location.href = '/register';
@@ -84,7 +84,7 @@ export default function TopBar() {
             <button
               onClick={() => setIsDropdownOpen(prev => !prev)}
               className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full hover:bg-slate-50 transition-all border border-slate-100"
-              aria-label="Menu Profil"
+              aria-label="Profile menu"
             >
               <User size={16} className="text-slate-600" />
               <ChevronDown size={14} className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -92,20 +92,20 @@ export default function TopBar() {
             {isDropdownOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-slate-100 shadow-xl p-2 animate-in fade-in slide-in-from-top-2 z-50">
                 <div className="px-3 py-2 border-b border-slate-50 mb-1">
-                  <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Memuat...'}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Loading...'}</p>
                   <p className="text-[11px] text-slate-400 truncate">{user?.email || '...'}</p>
                 </div>
                 <button
                   onClick={() => setIsLogoutModalOpen(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                 >
-                  <LogOut size={14} /> Keluar dari Akun
+                  <LogOut size={14} /> Logout
                 </button>
                 <button
                   onClick={handleDeleteAccount}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                 >
-                  <Trash2 size={14} /> Hapus Akun Permanen
+                  <Trash2 size={14} /> Delete Account Permanently
                 </button>
               </div>
             )}
