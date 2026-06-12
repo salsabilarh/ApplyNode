@@ -5,6 +5,6 @@ export const PRIORITY_META = {
 } as const;
 
 export const MONTH_NAMES_ID = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Oct', 'Nov', 'Dec'
 ] as const;
