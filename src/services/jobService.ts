@@ -31,6 +31,8 @@ export async function createJob(userId: string, data: any) {
       platform: data.platform,
       sourceLink: data.sourceLink || null,
       description: data.description || null,
+      requirement: data.requirement || null,
+      applyLink: data.applyLink || null,
       duration: data.duration || null,
       deadline: deadlineDate,
       openingDate: data.openingDate ? new Date(data.openingDate) : null,
@@ -59,6 +61,8 @@ export async function updateJob(jobId: string, userId: string, data: any) {
   if (data.platform !== undefined) updatePayload.platform = data.platform;
   if (data.sourceLink !== undefined) updatePayload.sourceLink = data.sourceLink || null;
   if (data.description !== undefined) updatePayload.description = data.description || null;
+  if (data.requirement !== undefined) updatePayload.requirement = data.requirement || null;
+  if (data.applyLink !== undefined) updatePayload.applyLink = data.applyLink || null;
   if (data.duration !== undefined) updatePayload.duration = data.duration || null;
   if (data.priority !== undefined) updatePayload.priority = data.priority;
   if (data.applyNotes !== undefined) updatePayload.applyNotes = data.applyNotes || null;

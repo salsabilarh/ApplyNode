@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Tailwind v4 CSS Variables / Design Tokens Configuration */
+/* Design Tokens (Tailwind v4) */
 @theme {
   --color-background: hsl(210 40% 98%);
   --color-foreground: hsl(222.2 84% 4.9%);
@@ -9,70 +9,100 @@
   --color-muted: hsl(210 40% 96.1%);
   --color-muted-foreground: hsl(215.4 16.3% 46.9%);
   --color-border: hsl(214.3 31.8% 91.4%);
+
+  /* Typography Scale (rem-based, accessible) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', sans-serif;
 }
 
 /* Global Base Styles */
 @layer base {
+  html {
+    font-size: 16px; /* base untuk rem, mudah diakses */
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-slate-50/50 text-slate-900 antialiased;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* Heading styles */
+  h1 {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+  h3 {
+    @apply text-base font-semibold;
+  }
+  /* Label styles */
+  label {
+    @apply text-sm font-medium text-slate-700;
+  }
+  /* Input focus ring (WCAG compliant) */
+  input:focus, textarea:focus, select:focus {
+    @apply outline-none ring-2 ring-blue-500/20 border-blue-500;
+  }
 }
 
-/* Custom Micro-Interaction Class */
-.transition-smooth {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+/* Custom Utilities */
+@layer utilities {
+  .transition-smooth {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  .interactive-card {
+    background-color: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03);
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .interactive-card:hover {
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
+    border-color: #e2e8f0;
+    transform: translateY(-2px);
+  }
+  .nav-glow {
+    position: relative;
+  }
+  .nav-glow::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2rem;
+    height: 4px;
+    background-color: #2563eb;
+    border-radius: 9999px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  }
 }
 
-/* Industrial Modern Scrollbar */
+/* Scrollbar (aksesibel) */
 ::-webkit-scrollbar {
-  height: 5px;
-  width: 5px;
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(203, 213, 225, 0.8); /* Warna slate-300/80 */
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(148, 163, 184, 1); /* Warna slate-400 */
-}
-::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-/* Custom Interactive Card Shadow */
-.interactive-card {
-  background-color: #ffffff;
-  border: 1px solid #f1f5f9; /* border-slate-100 */
-  border-radius: 0.75rem;     /* rounded-xl */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.03);
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.interactive-card:hover {
-  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
-  border-color: #e2e8f0;    /* border-slate-200 */
-  transform: translateY(-2px);
-}
-
-
-/* Active Navigation Glow */
-.nav-glow {
-  position: relative;
-}
-.nav-glow::after {
-  content: '';
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2rem;
-  height: 4px;
-  background-color: #2563eb; /* bg-blue-600 */
-  border-radius: 9999px;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  background: #94a3b8;
 }

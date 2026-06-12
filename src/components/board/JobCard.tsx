@@ -17,8 +17,9 @@ export default function JobCard({ job, index }: JobCardProps) {
   const daysLeft = getDaysLeft(new Date(job.deadline));
   const isExpired = daysLeft < 0;
   const isClosed = job.status === 'CLOSED' || (job.status !== 'APPLIED' && isExpired);
-  const isUrgent = daysLeft <= 2 && daysLeft >= 0 && !isClosed && job.status !== 'APPLIED';
-
+  const isAppliedStatus = ['APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD', 'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE', 'MEDICAL_CHECK_UP', 'OFFERING'].includes(job.status);
+  
+  const isUrgent = daysLeft >= 0 && !isClosed && !isAppliedStatus;
   const priorityMeta = getPriorityClass(job.priority);
 
   const handleDelete = async () => {
@@ -47,9 +48,10 @@ export default function JobCard({ job, index }: JobCardProps) {
             <h3 className={`font-semibold text-sm ${isClosed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
               {job.position}
             </h3>
+            {/* Tampilkan indikator H-X jika urgent */}
             {isUrgent && (
-              <span className="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-bold animate-pulse">
-                H-{daysLeft}
+              <span className="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-bold animate-pulse whitespace-nowrap">
+                {daysLeft === 0 ? 'Due Today' : `H-${daysLeft}`}
               </span>
             )}
           </div>
@@ -89,6 +91,12 @@ export default function JobCard({ job, index }: JobCardProps) {
               <span>Deadline: {formatDateShort(new Date(job.deadline))}</span>
             </div>
           )}
+          {/* {!isClosed && !isAppliedStatus && daysLeft <= 3 && daysLeft >= 0 && (
+            <div className="mt-2 text-[10px] text-rose-500 font-bold flex items-center gap-1 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
+              <CalendarDays size={10} />
+              <span>Expiring in {daysLeft === 0 ? 'today' : `${daysLeft} days`}</span>
+            </div>
+          )} */}
         </div>
       )}
     </Draggable>

@@ -33,7 +33,6 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-// 1. Ubah tipe di dalam model Job dari "Status" menjadi "JobStatus"
 model Job {
   id               String     @id @default(cuid())
   userId           String     
@@ -44,6 +43,8 @@ model Job {
   platform         String
   sourceLink       String?
   description      String?    @db.Text
+  requirement      String?    @db.Text
+  applyLink        String?
   duration         String?
   deadline         DateTime
   openingDate      DateTime?
