@@ -18,10 +18,6 @@ import { id } from 'date-fns/locale';
 import { CalendarDays, CalendarCheck, RefreshCw, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import { Job } from '@/types/job';
 
-/**
- * Client component for the monthly planner view.
- * Allows drag & drop scheduling of job applications.
- */
 export default function PlannerClient() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,18 +30,15 @@ export default function PlannerClient() {
       setLoading(true);
       const res = await fetch('/api/jobs');
       if (!res.ok) throw new Error('Gagal memuat data');
-      const data = await res.json();
-      // Handle both direct array and { success: true, data: [] } format
-      const jobsData = Array.isArray(data) ? data : (data.data || []);
+      const result = await res.json();
+      const jobsData = result.success ? result.data : result;
       
-      // Ensure date strings are valid (API returns ISO strings)
-      const normalizedJobs = jobsData.map((job: any) => ({
+      // Normalisasi: ubah plannedApplyDate dari ISO string menjadi YYYY-MM-DD
+      const normalizedJobs = (Array.isArray(jobsData) ? jobsData : []).map((job: any) => ({
         ...job,
-        deadline: job.deadline,
-        openingDate: job.openingDate || null,
-        plannedApplyDate: job.plannedApplyDate || null,
-        createdAt: job.createdAt,
-        updatedAt: job.updatedAt,
+        plannedApplyDate: job.plannedApplyDate ? job.plannedApplyDate.split('T')[0] : null,
+        openingDate: job.openingDate ? job.openingDate.split('T')[0] : null,
+        deadline: job.deadline ? job.deadline.split('T')[0] : null,
       }));
       setJobs(normalizedJobs);
     } catch (err) {
@@ -70,7 +63,7 @@ export default function PlannerClient() {
       newPlannedDate = destination.droppableId; // YYYY-MM-DD
     }
 
-    // Optimistic UI update - update plannedApplyDate as string
+    // Optimistic update
     setJobs(prev =>
       prev.map(job =>
         job.id === draggableId ? { ...job, plannedApplyDate: newPlannedDate } : job
@@ -79,15 +72,14 @@ export default function PlannerClient() {
     setSyncing(true);
 
     try {
+      // Kirim ke API dalam format YYYY-MM-DD (backend akan konversi ke Date)
       const response = await fetch(`/api/jobs/${draggableId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plannedApplyDate: newPlannedDate ? new Date(newPlannedDate).toISOString() : null,
-        }),
+        body: JSON.stringify({ plannedApplyDate: newPlannedDate }),
       });
       if (!response.ok) throw new Error('Gagal menyimpan jadwal');
-      await fetchJobs(); // Refresh to ensure consistency
+      await fetchJobs(); // refresh untuk konsistensi
     } catch (error) {
       setJobs(previousJobs);
       alert('Gagal menyinkronkan jadwal. Perubahan dibatalkan.');
@@ -121,6 +113,7 @@ export default function PlannerClient() {
 
   const getJobsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
+    // Karena plannedApplyDate sudah dalam format YYYY-MM-DD, bisa langsung bandingkan
     return safeJobs.filter(job => job.plannedApplyDate === dateStr);
   };
 
@@ -157,7 +150,6 @@ export default function PlannerClient() {
             <Inbox size={13} /> {showBacklog ? 'Sembunyikan Backlog' : 'Tampilkan Backlog'}
           </button>
 
-          {/* Month Navigator */}
           <div className="flex items-center border border-slate-200 bg-slate-50/50 p-1 rounded-xl">
             <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Bulan sebelumnya">
               <ChevronLeft size={16} />
@@ -172,17 +164,13 @@ export default function PlannerClient() {
         </div>
       </div>
 
-      {/* Main Drag & Drop Workspace */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Backlog Side Pool */}
           {showBacklog && (
             <div className="w-full lg:w-72 flex-shrink-0">
               <UnscheduledPool jobs={unscheduledJobs} />
             </div>
           )}
-
-          {/* Calendar Grid */}
           <div className="flex-1 w-full bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
             <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
               {dayNames.map(day => (
