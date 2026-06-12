@@ -14,9 +14,9 @@ export default function BottomNav() {
   const links = [
     { href: '/', label: 'Board', icon: LayoutGrid },
     { href: '/planner', label: 'Planner', icon: Calendar },
-    { href: '/jobs', label: 'Data', icon: TableProperties },
-    { href: '/jobs/new', label: 'Tambah', icon: PlusCircle },
-    { href: '/profile', label: 'Profil', icon: User },
+    { href: '/jobs', label: 'Jobs', icon: TableProperties },
+    { href: '/jobs/new', label: 'Add', icon: PlusCircle },
+    { href: '/profile', label: 'Profile', icon: User },
   ];
 
   return (
