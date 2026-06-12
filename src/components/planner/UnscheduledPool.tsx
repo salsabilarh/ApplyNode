@@ -19,7 +19,7 @@ export default function UnscheduledPool({ jobs }: UnscheduledPoolProps) {
       <div className="px-4 py-3 bg-white border-b border-slate-100 rounded-t-2xl flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2 text-slate-700">
           <Inbox size={15} className="text-slate-400" />
-          <h2 className="font-bold text-xs uppercase tracking-wider text-slate-500">Backlog Lowongan</h2>
+          <h2 className="font-bold text-xs uppercase tracking-wider text-slate-500">Job Backlog</h2>
         </div>
         <span className="text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md">
           {jobs.length}
@@ -38,7 +38,7 @@ export default function UnscheduledPool({ jobs }: UnscheduledPoolProps) {
             {jobs.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-400">
                 <Inbox size={24} className="text-slate-200 mb-1" />
-                <p className="text-[11px] font-medium">Semua item sudah terjadwal</p>
+                <p className="text-[11px] font-medium">All items are scheduled</p>
               </div>
             ) : (
               jobs.map((job, index) => (

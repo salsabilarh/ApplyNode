@@ -10,7 +10,6 @@ import { Job } from '@/types/job';
 interface JobCardProps {
   job: Job;
   index: number;
-  onStatusChange?: (id: string, nextStatus: string) => void;
 }
 
 export default function JobCard({ job, index }: JobCardProps) {
@@ -25,11 +24,11 @@ export default function JobCard({ job, index }: JobCardProps) {
   const handleDelete = async () => {
     openModal({
       onConfirm: async () => {
-        await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
-        window.location.reload();
+        const res = await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
+        if (res.ok) window.location.reload();
       },
-      title: 'Hapus Lowongan?',
-      message: 'Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'
+      title: 'Delete Job?',
+      message: 'This job application will be permanently deleted. This action cannot be undone.'
     });
   };
 
@@ -70,14 +69,14 @@ export default function JobCard({ job, index }: JobCardProps) {
               <button
                 onClick={handleDelete}
                 className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                aria-label="Hapus Lowongan"
+                aria-label="Delete job"
               >
                 <Trash2 size={14} />
               </button>
               <Link
                 href={`/jobs/${job.id}/edit`}
                 className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                aria-label="Edit Lowongan"
+                aria-label="Edit job"
               >
                 <ArrowUpRight size={14} />
               </Link>

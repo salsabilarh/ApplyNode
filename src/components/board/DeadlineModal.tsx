@@ -46,7 +46,7 @@ export default function DeadlineModal({
     const now = new Date();
 
     if (chosenDate >= now) {
-      setError('Tanggal deadline harus sudah lewat dari waktu saat ini untuk masuk ke status CLOSED.');
+      setError('Deadline must be in the past to close the job.');
       return;
     }
     onConfirm(selectedDate);
@@ -58,7 +58,7 @@ export default function DeadlineModal({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-amber-600">
             <Calendar size={18} strokeWidth={2.2} />
-            <h3 className="font-bold text-sm text-slate-900">Konfirmasi Tanggal Penutupan</h3>
+            <h3 className="font-bold text-sm text-slate-900">Confirm Closing Date</h3>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors">
             <X size={16} />
@@ -66,7 +66,7 @@ export default function DeadlineModal({
         </div>
 
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lowongan Kerja</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Job Details</p>
           <p className="text-xs font-bold text-slate-800 mt-0.5">{positionName}</p>
           <p className="text-xs text-slate-500 font-medium">{companyName}</p>
         </div>
@@ -81,7 +81,7 @@ export default function DeadlineModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
-              Tanggal & Waktu Deadline (Past)
+              Deadline Date & Time (Past)
             </label>
             <input
               type="datetime-local"
@@ -101,13 +101,13 @@ export default function DeadlineModal({
               onClick={onClose}
               className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-all"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all active:scale-95"
             >
-              Simpan & Tutup
+              Confirm & Close
             </button>
           </div>
         </form>

@@ -12,9 +12,8 @@ export function useJobs() {
     try {
       setLoading(true);
       const res = await fetch('/api/jobs');
-      if (!res.ok) throw new Error('Gagal mengambil data');
+      if (!res.ok) throw new Error('Failed to fetch jobs');
       const result = await res.json();
-      // Handle response format { success: true, data: [] }
       const jobsData = result.success ? result.data : result;
       setJobs(Array.isArray(jobsData) ? jobsData : []);
       setError(null);

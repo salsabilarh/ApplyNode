@@ -64,8 +64,8 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
     openDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((today.getTime() - openDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 'Belum dibuka';
-    return diffDays === 0 ? 'Hari ini' : `${diffDays} hari`;
+    if (diffDays < 0) return 'Not opened yet';
+    return diffDays === 0 ? 'Today' : `${diffDays} days`;
   };
 
   const getDeadlineBadge = (deadlineStr: string) => {
@@ -83,21 +83,21 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
       return (
         <div className="flex flex-col">
           <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-          <span className="text-[10px] text-rose-600 font-bold mt-0.5">Lewat</span>
+          <span className="text-[10px] text-rose-600 font-bold mt-0.5">Expired</span>
         </div>
       );
     } else if (diffDays === 0) {
       return (
         <div className="flex flex-col">
           <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-          <span className="text-[10px] text-amber-600 font-bold mt-0.5 animate-pulse">Hari terakhir!</span>
+          <span className="text-[10px] text-amber-600 font-bold mt-0.5 animate-pulse">Last day!</span>
         </div>
       );
     }
     return (
       <div className="flex flex-col">
         <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-        <span className="text-[10px] text-blue-600 font-semibold mt-0.5 bg-blue-50 px-1.5 py-0.5 rounded-md w-fit">{diffDays} hari lagi</span>
+        <span className="text-[10px] text-blue-600 font-semibold mt-0.5 bg-blue-50 px-1.5 py-0.5 rounded-md w-fit">{diffDays} days left</span>
       </div>
     );
   };
@@ -109,9 +109,9 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
         <div className="flex items-center gap-2.5">
           <Briefcase className="text-blue-600" size={22} strokeWidth={2.2} />
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Master Data Lowongan</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Master Data</h1>
             <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              Seluruh data lamaran kerja dengan filter dan pencarian lanjutan.
+              All job applications with advanced filtering and search capabilities.
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
           href="/jobs/new"
           className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl active:scale-95 transition-all shadow-sm self-start md:self-center"
         >
-          <Plus size={14} strokeWidth={2.5} /> Tambah Lowongan
+          <Plus size={14} strokeWidth={2.5} /> Add Job
         </Link>
       </div>
 
@@ -130,7 +130,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
             <Search className="absolute left-3.5 top-3 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Cari posisi atau perusahaan..."
+              placeholder="Search by position or company..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all"
@@ -154,7 +154,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
               onChange={(e) => setFilterPlatform(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
             >
-              <option value="">Semua Platform</option>
+              <option value="">All Platforms</option>
               {uniquePlatforms.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
@@ -165,7 +165,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
               onChange={(e) => setFilterCompany(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
             >
-              <option value="">Semua Perusahaan</option>
+              <option value="">All Companies</option>
               {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -176,7 +176,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
               onChange={(e) => setFilterPriority(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
             >
-              <option value="">Semua Prioritas</option>
+              <option value="">All Priorities</option>
               <option value="HIGH">High</option>
               <option value="MEDIUM">Medium</option>
               <option value="LOW">Low</option>
@@ -189,7 +189,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
             >
-              <option value="">Semua Status</option>
+              <option value="">All Statuses</option>
               {uniqueStatuses.map(status => (
                 <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
               ))}
@@ -204,20 +204,20 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Posisi & Perusahaan</th>
+                <th className="py-3 px-4">Position & Company</th>
                 <th className="py-3 px-4">Platform</th>
-                <th className="py-3 px-4">Lama Dibuka</th>
+                <th className="py-3 px-4">Days Open</th>
                 <th className="py-3 px-4">Deadline</th>
-                <th className="py-3 px-4 text-center">Prioritas</th>
+                <th className="py-3 px-4 text-center">Priority</th>
                 <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Aksi</th>
-              </tr>
+                <th className="py-3 px-4 text-center">Actions</th>
+               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
               {filteredJobs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                    Tidak ada data yang sesuai.
+                    No matching job data found.
                   </td>
                 </tr>
               ) : (
@@ -254,7 +254,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
                         href={`/jobs/${job.id}/edit`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all font-semibold text-[10px]"
                       >
-                        <Info size={14} /> Detail
+                        <Info size={14} /> Details
                       </Link>
                     </td>
                   </tr>
@@ -264,7 +264,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
           </table>
         </div>
         <div className="p-3.5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] font-medium text-slate-400">
-          <span>Menampilkan {filteredJobs.length} dari {initialJobs.length} lowongan</span>
+          <span>Showing {filteredJobs.length} of {initialJobs.length} jobs</span>
         </div>
       </div>
     </div>

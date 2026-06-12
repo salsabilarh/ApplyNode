@@ -29,11 +29,11 @@ export default function PlannerClient() {
     try {
       setLoading(true);
       const res = await fetch('/api/jobs');
-      if (!res.ok) throw new Error('Gagal memuat data');
+      if (!res.ok) throw new Error('Failed to load data');
       const result = await res.json();
       const jobsData = result.success ? result.data : result;
       
-      // Normalisasi: ubah plannedApplyDate dari ISO string menjadi YYYY-MM-DD
+      // Normalize: convert plannedApplyDate from ISO string to YYYY-MM-DD
       const normalizedJobs = (Array.isArray(jobsData) ? jobsData : []).map((job: any) => ({
         ...job,
         plannedApplyDate: job.plannedApplyDate ? job.plannedApplyDate.split('T')[0] : null,
@@ -42,7 +42,7 @@ export default function PlannerClient() {
       }));
       setJobs(normalizedJobs);
     } catch (err) {
-      console.error('Gagal memuat data planner:', err);
+      console.error('Failed to load planner data:', err);
       setJobs([]);
     } finally {
       setLoading(false);
@@ -72,17 +72,17 @@ export default function PlannerClient() {
     setSyncing(true);
 
     try {
-      // Kirim ke API dalam format YYYY-MM-DD (backend akan konversi ke Date)
+      // Send to API in YYYY-MM-DD format (backend will convert to Date)
       const response = await fetch(`/api/jobs/${draggableId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plannedApplyDate: newPlannedDate }),
       });
-      if (!response.ok) throw new Error('Gagal menyimpan jadwal');
-      await fetchJobs(); // refresh untuk konsistensi
+      if (!response.ok) throw new Error('Failed to save schedule');
+      await fetchJobs(); // refresh for consistency
     } catch (error) {
       setJobs(previousJobs);
-      alert('Gagal menyinkronkan jadwal. Perubahan dibatalkan.');
+      alert('Failed to sync schedule. Changes reverted.');
     } finally {
       setSyncing(false);
     }
@@ -113,12 +113,12 @@ export default function PlannerClient() {
 
   const getJobsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    // Karena plannedApplyDate sudah dalam format YYYY-MM-DD, bisa langsung bandingkan
+    // Because plannedApplyDate is now in YYYY-MM-DD format, we can compare directly
     return safeJobs.filter(job => job.plannedApplyDate === dateStr);
   };
 
   const scheduledCount = safeJobs.filter(j => j.plannedApplyDate).length;
-  const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto">
@@ -128,18 +128,18 @@ export default function PlannerClient() {
           <CalendarDays size={22} className="text-violet-600" strokeWidth={2.2} />
           <div>
             <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              Kalender Rencana Apply
+              Application Planner
               {syncing && <RefreshCw size={13} className="text-violet-500 animate-spin" />}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              Drag & drop lowongan ke tanggal yang direncanakan.
+              Drag & drop jobs to your planned application dates.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-xl border border-violet-100/60">
-            <CalendarCheck size={13} /> {scheduledCount} Terjadwal
+            <CalendarCheck size={13} /> {scheduledCount} Scheduled
           </span>
           <button
             onClick={() => setShowBacklog(prev => !prev)}
@@ -147,17 +147,17 @@ export default function PlannerClient() {
               showBacklog ? 'bg-slate-800 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            <Inbox size={13} /> {showBacklog ? 'Sembunyikan Backlog' : 'Tampilkan Backlog'}
+            <Inbox size={13} /> {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
           </button>
 
           <div className="flex items-center border border-slate-200 bg-slate-50/50 p-1 rounded-xl">
-            <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Bulan sebelumnya">
+            <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Previous month">
               <ChevronLeft size={16} />
             </button>
             <span className="text-xs font-bold text-slate-800 px-3 min-w-[110px] text-center capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: id })}
             </span>
-            <button onClick={nextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Bulan berikutnya">
+            <button onClick={nextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Next month">
               <ChevronRight size={16} />
             </button>
           </div>

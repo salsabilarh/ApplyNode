@@ -10,23 +10,14 @@ import {
   Loader2, Briefcase, CheckCircle2, BarChart3, Plus,
   Compass, FileSearch, Users2, Award
 } from 'lucide-react';
+import { Job } from '@/types/job';
 
-interface Job {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  deadline: string;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  status: 'BACKLOG' | 'APPLYING' | 'APPLIED' | 'ADMIN_SCREENING' | 'ASSESSMENT' | 'FGD_LGD' | 'INTERVIEW_HR' | 'INTERVIEW_USER' | 'INTERVIEW_EXECUTIVE' | 'MEDICAL_CHECK_UP' | 'OFFERING' | 'CLOSED';
-}
-
-// Recruitment phase architecture (unchanged)
+// Recruitment phase architecture
 const RECRUITMENT_PHASES = [
   {
     id: 'preparation',
-    name: '1. Persiapan & Berkas',
-    description: 'Proses riset & submit berkas lamaran',
+    name: '1. Preparation & Documents',
+    description: 'Research and submit application documents',
     icon: Compass,
     headerColor: 'bg-slate-900 text-white',
     bodyColor: 'bg-slate-50/50 border-slate-200/80',
@@ -38,8 +29,8 @@ const RECRUITMENT_PHASES = [
   },
   {
     id: 'screening',
-    name: '2. Penyaringan Awal',
-    description: 'Seleksi berkas administrasi & tes dasar',
+    name: '2. Initial Screening',
+    description: 'Document selection & basic tests',
     icon: FileSearch,
     headerColor: 'bg-indigo-950 text-white',
     bodyColor: 'bg-indigo-50/20 border-indigo-100/80',
@@ -51,21 +42,21 @@ const RECRUITMENT_PHASES = [
   },
   {
     id: 'interview',
-    name: '3. Wawancara Kerja',
-    description: 'Uji kompetensi, kecocokan tim, & direksi',
+    name: '3. Job Interview',
+    description: 'Competency, team fit & executive interviews',
     icon: Users2,
     headerColor: 'bg-violet-950 text-white',
     bodyColor: 'bg-pink-50/10 border-pink-100/60',
     subColumns: [
-      { id: 'INTERVIEW_HR', label: 'Interview HR', color: 'bg-pink-50 text-pink-800' },
-      { id: 'INTERVIEW_USER', label: 'Interview User', color: 'bg-orange-50 text-orange-800' },
-      { id: 'INTERVIEW_EXECUTIVE', label: 'Interview Exec', color: 'bg-cyan-50 text-cyan-800' },
+      { id: 'INTERVIEW_HR', label: 'HR Interview', color: 'bg-pink-50 text-pink-800' },
+      { id: 'INTERVIEW_USER', label: 'User Interview', color: 'bg-orange-50 text-orange-800' },
+      { id: 'INTERVIEW_EXECUTIVE', label: 'Executive Interview', color: 'bg-cyan-50 text-cyan-800' },
     ]
   },
   {
     id: 'final',
-    name: '4. Negosiasi & Hasil',
-    description: 'Tahap penawaran kontrak & keputusan',
+    name: '4. Negotiation & Result',
+    description: 'Offer negotiation & final decision',
     icon: Award,
     headerColor: 'bg-emerald-950 text-white',
     bodyColor: 'bg-emerald-50/20 border-emerald-100/80',
@@ -139,23 +130,21 @@ export default function BoardClient() {
       console.error('Auto-close expired jobs failed:', error);
     }
   }, [router]);
-
   const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/jobs');
-      if (!res.ok) throw new Error('Gagal mengambil data lowongan');
-      const data = await res.json();
-      // Handle both direct array and { success: true, data: [] } format
-      const jobsData = Array.isArray(data) ? data : (data.data || []);
-      setJobs(jobsData);
-      await autoCloseExpiredJobs(jobsData);
+      if (!res.ok) throw new Error('Failed to fetch jobs');
+      const result = await res.json();
+      const jobsData = result.success ? result.data : result;
+      setJobs(Array.isArray(jobsData) ? jobsData : []);
+      setError('');
     } catch (err: any) {
-      setError(err.message || 'Terjadi kesalahan sistem');
+      setError(err.message || 'System error occurred');
     } finally {
       setLoading(false);
     }
-  }, [autoCloseExpiredJobs]);
+  }, []);
 
   useEffect(() => {
     fetchJobs();
@@ -179,11 +168,11 @@ export default function BoardClient() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Gagal memperbarui status');
+        throw new Error(data.error || 'Failed to update status');
       }
       router.refresh();
     } catch (err: any) {
-      alert(err.message || 'Gagal memperbarui data');
+      alert(err.message || 'Failed to update data');
       await fetchJobs(); // revert optimistic update
     }
   }, [fetchJobs, router]);
@@ -221,7 +210,7 @@ export default function BoardClient() {
     return (
       <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-2 select-none">
         <Loader2 className="animate-spin text-blue-600" size={32} />
-        <p className="text-xs font-semibold text-slate-400">Memuat papan rekrutmen...</p>
+        <p className="text-xs font-semibold text-slate-400">Loading recruitment board...</p>
       </div>
     );
   }
@@ -230,19 +219,18 @@ export default function BoardClient() {
     return (
       <div className="w-full p-8 text-center text-red-600 bg-red-50 rounded-2xl">
         <p>⚠️ {error}</p>
-        <button onClick={fetchJobs} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl">Coba Lagi</button>
+        <button onClick={fetchJobs} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl">Try Again</button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 select-none w-full max-w-[1600px] mx-auto px-2">
-      {/* Header stats panel */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
         <div>
           <h1 className="text-base font-black text-slate-900 flex items-center gap-2 tracking-tight">
             <Briefcase className="text-blue-600" size={18} strokeWidth={2.5} />
-            Alur Pelacakan Karier Vertikal
+            Career Tracking Board
           </h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 mt-0.5 font-medium">
             <span>Total: <strong className="text-slate-700 font-bold">{totalJobs}</strong></span>
@@ -258,11 +246,10 @@ export default function BoardClient() {
           href="/jobs/new"
           className="inline-flex items-center justify-center gap-1.5 bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-blue-700 shadow-sm transition-all w-full sm:w-auto active:scale-95"
         >
-          <Plus size={15} strokeWidth={2.5} /> Tambah Lowongan
+          <Plus size={15} strokeWidth={2.5} /> Add Job
         </Link>
       </div>
 
-      {/* Drag & Drop Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
           {RECRUITMENT_PHASES.map(phase => {
@@ -282,7 +269,6 @@ export default function BoardClient() {
                 <div className="p-3.5 space-y-4 bg-slate-50/40">
                   {phase.subColumns.map(col => {
                     const columnJobs = jobs.filter(job => job.status === col.id);
-                    const percentage = totalJobs > 0 ? Math.round((columnJobs.length / totalJobs) * 100) : 0;
                     return (
                       <div key={col.id} className="bg-white rounded-xl border border-slate-200/50 shadow-inner overflow-hidden">
                         <Column
@@ -291,8 +277,6 @@ export default function BoardClient() {
                           colorClass={col.color}
                           jobs={columnJobs}
                           quantity={columnJobs.length}
-                          percentage={percentage}
-                          onStatusChange={handleStatusChange}
                         />
                       </div>
                     );

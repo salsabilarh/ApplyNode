@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { JobType, Priority, JobStatus } from '@prisma/client';
 import { ArrowLeft, Save, XCircle, Loader2, Briefcase, Calendar, FileText, AlertCircle, Trash2 } from 'lucide-react';
@@ -56,7 +56,16 @@ const formatInitialDataForInput = (data: any) => {
 const DATE_INPUT_STYLE = "w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all duration-200";
 const ERROR_DATE_STYLE = "w-full border border-rose-300 bg-rose-50/50 rounded-xl px-3 py-2.5 text-sm text-rose-900 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all duration-200";
 
-const ProfessionalDateInput = ({ label, name, value, onChange, error, required }: any) => (
+interface ProfessionalDateInputProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
+  required?: boolean;
+}
+
+const ProfessionalDateInput = ({ label, name, value, onChange, error, required }: ProfessionalDateInputProps) => (
   <div className="flex flex-col">
     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
       {label} {required && <span className="text-rose-500">*</span>}
@@ -98,11 +107,11 @@ export default function JobForm({ initialData }: { initialData?: any }) {
 
     [dDate, pDate, oDate].forEach(d => d?.setHours(0, 0, 0, 0));
 
-    if (oDate && dDate && oDate > dDate) newErrors.openingDate = 'Tanggal buka tidak boleh setelah deadline.';
-    if (oDate && pDate && oDate > pDate) newErrors.openingDate = 'Tanggal buka tidak boleh setelah rencana apply.';
+    if (oDate && dDate && oDate > dDate) newErrors.openingDate = 'Opening date cannot be after deadline.';
+    if (oDate && pDate && oDate > pDate) newErrors.openingDate = 'Opening date cannot be after planned apply date.';
     if (pDate && dDate && pDate > dDate) {
-      newErrors.plannedApplyDate = 'Rencana apply tidak boleh melewati deadline.';
-      newErrors.deadline = 'Deadline tidak boleh mendahului rencana apply.';
+      newErrors.plannedApplyDate = 'Planned apply date cannot exceed deadline.';
+      newErrors.deadline = 'Deadline cannot be before planned apply date.';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -140,10 +149,10 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         router.refresh();
       } else {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Gagal menyimpan data.');
+        throw new Error(errorData.error || 'Failed to save data.');
       }
     } catch (error: any) {
-      alert(`Gagal: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -164,8 +173,8 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const handleDelete = () => {
     if (!form.id) return;
     openModal({
-      title: 'Hapus Lowongan?',
-      message: 'Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+      title: 'Delete Job?',
+      message: 'This job application will be permanently deleted. This action cannot be undone.',
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/jobs/${form.id}`, { method: 'DELETE' });
@@ -173,10 +182,10 @@ export default function JobForm({ initialData }: { initialData?: any }) {
             router.push('/');
             router.refresh();
           } else {
-            throw new Error('Gagal menghapus');
+            throw new Error('Delete failed');
           }
         } catch (error) {
-          alert('Terjadi kesalahan saat menghapus');
+          alert('An error occurred while deleting');
         }
       },
     });
@@ -189,34 +198,34 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         onClick={() => router.back()}
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors group"
       >
-        <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Kembali
+        <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Back
       </button>
 
       <div>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-          {form.id ? 'Edit Lowongan' : 'Tambah Lowongan Baru'}
+          {form.id ? 'Edit Job' : 'Add New Job'}
         </h1>
-        <p className="text-xs text-slate-400 mt-1">Lengkapi data di bawah untuk manajemen karir yang optimal.</p>
+        <p className="text-xs text-slate-400 mt-1">Complete the form below to manage your career journey.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Informasi Utama */}
+        {/* Basic Information */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
             <Briefcase size={16} className="text-blue-500" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Informasi Fundamental</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Basic Information</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Posisi <span className="text-rose-500">*</span></label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Position <span className="text-rose-500">*</span></label>
               <input name="position" value={form.position} onChange={handleChange} required className={baseInputStyle} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Perusahaan <span className="text-rose-500">*</span></label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Company <span className="text-rose-500">*</span></label>
               <input name="company" value={form.company} onChange={handleChange} required className={baseInputStyle} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tipe Pekerjaan</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Job Type</label>
               <select name="jobType" value={form.jobType} onChange={handleChange} className={baseSelectStyle}>
                 {Object.values(JobType).map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
               </select>
@@ -226,27 +235,27 @@ export default function JobForm({ initialData }: { initialData?: any }) {
               <input name="platform" value={form.platform} onChange={handleChange} required className={baseInputStyle} />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Tautan Sumber</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Source Link</label>
               <input name="sourceLink" value={form.sourceLink} onChange={handleChange} type="url" className={baseInputStyle} />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Deskripsi</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Description</label>
               <textarea name="description" value={form.description} onChange={handleChange} rows={3} className={`${baseInputStyle} resize-none`} />
             </div>
           </div>
         </div>
 
-        {/* Waktu & Prioritas */}
+        {/* Time & Priority */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
             <Calendar size={16} className="text-amber-500" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Manajemen Waktu</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Time Management</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ProfessionalDateInput label="Deadline" name="deadline" value={form.deadline} onChange={handleChange} error={errors.deadline} required />
-            <ProfessionalDateInput label="Tanggal Buka" name="openingDate" value={form.openingDate} onChange={handleChange} error={errors.openingDate} />
+            <ProfessionalDateInput label="Opening Date" name="openingDate" value={form.openingDate} onChange={handleChange} error={errors.openingDate} />
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Prioritas</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Priority</label>
               <select name="priority" value={form.priority} onChange={handleChange} className={baseSelectStyle}>
                 {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -258,30 +267,30 @@ export default function JobForm({ initialData }: { initialData?: any }) {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Durasi (opsional)</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Duration (optional)</label>
               <input name="duration" value={form.duration} onChange={handleChange} className={baseInputStyle} />
             </div>
           </div>
         </div>
 
-        {/* Rencana Apply */}
+        {/* Execution Plan */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
             <FileText size={16} className="text-emerald-500" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Rencana Eksekusi</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Execution Plan</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Catatan Persiapan</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Preparation Notes</label>
               <textarea name="applyNotes" value={form.applyNotes} onChange={handleChange} rows={2} className={`${baseInputStyle} resize-none`} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Rencana Tanggal</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Planned Date</label>
               <input type="date" name="plannedApplyDate" value={form.plannedApplyDate} onChange={handleChange} className={errors.plannedApplyDate ? ERROR_DATE_STYLE : baseInputStyle} />
               {errors.plannedApplyDate && <p className="text-rose-500 text-[10px] mt-1">{errors.plannedApplyDate}</p>}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Rencana Waktu</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Planned Time</label>
               <input type="time" name="plannedApplyTime" value={form.plannedApplyTime} onChange={handleChange} className={baseInputStyle} />
             </div>
           </div>
@@ -290,13 +299,13 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
           <button type="button" onClick={handleDelete} disabled={loading} className="flex items-center gap-1.5 border border-red-200 text-red-600 text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-red-50 active:scale-95 transition-all disabled:opacity-50 mr-auto">
-            <Trash2 size={16} /> Hapus
+            <Trash2 size={16} /> Delete
           </button>
           <button type="button" onClick={() => router.back()} disabled={loading} className="flex items-center gap-1.5 border border-slate-200 text-slate-500 text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50">
-            <XCircle size={16} /> Batal
+            <XCircle size={16} /> Cancel
           </button>
           <button type="submit" disabled={loading || Object.keys(errors).length > 0} className="flex items-center gap-1.5 bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 shadow-sm transition-all disabled:opacity-50">
-            {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><Save size={16} /> Simpan</>}
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save</>}
           </button>
         </div>
       </form>

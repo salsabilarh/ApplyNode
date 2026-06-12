@@ -2,22 +2,22 @@
 
 import { Droppable } from '@hello-pangea/dnd';
 import JobCard from './JobCard';
+import { Job } from '@/types/job';
 
 interface ColumnProps {
   id: string;
   label: string;
   colorClass: string;
-  jobs: any[];
+  jobs: Job[];
   quantity: number;
   percentage?: number;
-  onStatusChange: (id: string, nextStatus: any) => void;
 }
 
 /**
  * A single droppable column that displays a list of job cards.
  * Used within the Kanban board to represent a specific application status.
  */
-export default function Column({ id, label, colorClass, jobs, quantity, onStatusChange }: ColumnProps) {
+export default function Column({ id, label, colorClass, jobs, quantity }: ColumnProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
       <div className={`px-3 py-2 flex items-center justify-between border-b border-slate-100 ${colorClass}`}>
@@ -33,7 +33,7 @@ export default function Column({ id, label, colorClass, jobs, quantity, onStatus
             className={`p-2 min-h-[120px] transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50/30' : ''}`}
           >
             {jobs.map((job, index) => (
-              <JobCard key={job.id} job={job} index={index} onStatusChange={onStatusChange} />
+              <JobCard key={job.id} job={job} index={index} />
             ))}
             {provided.placeholder}
           </div>
