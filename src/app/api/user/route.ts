@@ -1,41 +1,35 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
 import { verifyJWT } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { getUserProfile, deleteUserAccount } from '@/services/userService';
+import { successResponse, errorResponse, handleApiError } from '@/lib/api-helpers';
 
-export async function GET() {
-  const token = (await cookies()).get('token')?.value;
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest) {
+  try {
+    const token = req.cookies.get('token')?.value;
+    if (!token) return errorResponse('Unauthorized', 401);
+    const payload = await verifyJWT(token);
+    if (!payload) return errorResponse('Invalid token', 401);
 
-  const userPayload = await verifyJWT(token);
-  
-  // PERBAIKAN: Cek apakah userPayload valid
-  if (!userPayload) {
-    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    const user = await getUserProfile(payload.id);
+    if (!user) return errorResponse('User tidak ditemukan', 404);
+    return successResponse(user);
+  } catch (error) {
+    return handleApiError(error);
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userPayload.id }, // TypeScript sekarang tahu userPayload tidak null
-    select: { name: true, email: true, createdAt: true }
-  });
-
-  return NextResponse.json(user);
 }
 
-export async function DELETE() {
-  const token = (await cookies()).get('token')?.value;
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function DELETE(req: NextRequest) {
+  try {
+    const token = req.cookies.get('token')?.value;
+    if (!token) return errorResponse('Unauthorized', 401);
+    const payload = await verifyJWT(token);
+    if (!payload) return errorResponse('Invalid token', 401);
 
-  const userPayload = await verifyJWT(token);
-  
-  // PERBAIKAN: Cek apakah userPayload valid
-  if (!userPayload) {
-    return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    await deleteUserAccount(payload.id);
+    const response = successResponse({ message: 'Akun berhasil dihapus' });
+    response.cookies.delete('token');
+    return response;
+  } catch (error) {
+    return handleApiError(error);
   }
-  
-  await prisma.user.delete({ where: { id: userPayload.id } });
-  
-  const response = NextResponse.json({ message: 'Akun berhasil dihapus' });
-  response.cookies.delete('token');
-  return response;
 }

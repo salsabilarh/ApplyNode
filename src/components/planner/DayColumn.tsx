@@ -11,10 +11,6 @@ interface DayColumnProps {
   currentMonth: Date;
 }
 
-/**
- * A single day cell in the planner calendar.
- * Contains a droppable area for scheduled job cards.
- */
 export default function DayColumn({ date, jobs, currentMonth }: DayColumnProps) {
   const isCurrentMonth = isSameMonth(date, currentMonth);
   const isDateToday = isToday(date);
@@ -40,7 +36,7 @@ export default function DayColumn({ date, jobs, currentMonth }: DayColumnProps) 
             }`}
           >
             {jobs.map((job, index) => (
-              <PlannerJobCard key={job.id} job={job} index={index} isScheduled />
+              <PlannerJobCard key={job.id} job={job} index={index} isScheduled={true} />
             ))}
             {provided.placeholder}
           </div>

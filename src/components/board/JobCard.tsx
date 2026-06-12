@@ -1,20 +1,11 @@
 'use client';
 
 import { Draggable } from '@hello-pangea/dnd';
-import { Priority } from '@prisma/client';
 import Link from 'next/link';
-import { Building2, ArrowUpRight, Lock, Trash2, CalendarDays } from 'lucide-react';
+import { Building2, ArrowUpRight, Trash2, CalendarDays } from 'lucide-react';
 import { useModal } from '@/context/ModalContext';
-
-type Job = {
-  id: string;
-  position: string;
-  company: string;
-  platform: string;
-  deadline: string;
-  priority: Priority;
-  status: string;
-};
+import { getDaysLeft, formatDateShort, getPriorityClass } from '@/lib/utils';
+import { Job } from '@/types/job';
 
 interface JobCardProps {
   job: Job;
@@ -22,41 +13,24 @@ interface JobCardProps {
   onStatusChange?: (id: string, nextStatus: string) => void;
 }
 
-/**
- * Draggable card representing a single job application.
- * Shows priority, deadline urgency, and provides edit/delete actions.
- */
-export default function JobCard({ job, index, onStatusChange }: JobCardProps) {
+export default function JobCard({ job, index }: JobCardProps) {
   const { openModal } = useModal();
-
-  // Normalize deadline to UTC date for consistent day calculation
-  const deadlineDate = new Date(job.deadline);
-  const utcDeadline = new Date(Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), deadlineDate.getUTCDate()));
-  const today = new Date();
-  const utcToday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  const daysLeft = Math.ceil((utcDeadline.getTime() - utcToday.getTime()) / (1000 * 60 * 60 * 24));
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const formattedDeadline = `${deadlineDate.getUTCDate()} ${monthNames[deadlineDate.getUTCMonth()]}`;
-
-  const safeStatuses = [
-    'APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD',
-    'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE',
-    'MEDICAL_CHECK_UP', 'OFFERING'
-  ];
-  const isAutoExpired = !safeStatuses.includes(job.status) && daysLeft < 0;
-  const isClosed = job.status === 'CLOSED' || isAutoExpired;
+  const daysLeft = getDaysLeft(new Date(job.deadline));
+  const isExpired = daysLeft < 0;
+  const isClosed = job.status === 'CLOSED' || (job.status !== 'APPLIED' && isExpired);
   const isUrgent = daysLeft <= 2 && daysLeft >= 0 && !isClosed && job.status !== 'APPLIED';
 
-  const priorityMeta = {
-    HIGH: { label: 'Tinggi', wrapper: 'text-red-700 bg-red-50/60 border-red-100', dot: 'bg-red-500' },
-    MEDIUM: { label: 'Sedang', wrapper: 'text-amber-700 bg-amber-50/60 border-amber-100', dot: 'bg-amber-500' },
-    LOW: { label: 'Rendah', wrapper: 'text-emerald-700 bg-emerald-50/60 border-emerald-100', dot: 'bg-emerald-500' }
-  }[job.priority] || { label: job.priority, wrapper: 'text-slate-600 bg-slate-50 border-slate-100', dot: 'bg-slate-400' };
+  const priorityMeta = getPriorityClass(job.priority);
 
   const handleDelete = async () => {
-    await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
-    window.location.reload();
+    openModal({
+      onConfirm: async () => {
+        await fetch(`/api/jobs/${job.id}`, { method: 'DELETE' });
+        window.location.reload();
+      },
+      title: 'Hapus Lowongan?',
+      message: 'Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'
+    });
   };
 
   return (
@@ -66,7 +40,7 @@ export default function JobCard({ job, index, onStatusChange }: JobCardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`interactive-card p-3 bg-white border border-slate-100 rounded-xl relative select-none transition-all duration-200 ${
+          className={`p-3 bg-white border border-slate-100 rounded-xl relative select-none transition-all duration-200 ${
             isClosed ? 'opacity-65 bg-slate-50/60 border-slate-200/60 cursor-not-allowed' : 'cursor-grab hover:border-slate-300 hover:shadow-sm'
           }`}
         >
@@ -94,11 +68,7 @@ export default function JobCard({ job, index, onStatusChange }: JobCardProps) {
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => openModal({
-                  onConfirm: handleDelete,
-                  title: 'Hapus Lowongan?',
-                  message: 'Data lamaran ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'
-                })}
+                onClick={handleDelete}
                 className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                 aria-label="Hapus Lowongan"
               >
@@ -114,11 +84,10 @@ export default function JobCard({ job, index, onStatusChange }: JobCardProps) {
             </div>
           </div>
 
-          {/* Show deadline if not closed and not urgent */}
           {!isClosed && !isUrgent && (
             <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
               <CalendarDays size={10} />
-              <span>Deadline: {formattedDeadline}</span>
+              <span>Deadline: {formatDateShort(new Date(job.deadline))}</span>
             </div>
           )}
         </div>
