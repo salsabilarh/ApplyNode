@@ -1,4 +1,5 @@
 'use client';
+
 import { Droppable } from '@hello-pangea/dnd';
 import PlannerJobCard from './PlannerJobCard';
 import { format, isToday, isSameMonth } from 'date-fns';
@@ -6,10 +7,14 @@ import { Job } from '@/types/job';
 
 interface DayColumnProps {
   date: Date;
-  jobs: Job[]; // Gunakan interface yang sudah konsisten
+  jobs: Job[];
   currentMonth: Date;
 }
 
+/**
+ * A single day cell in the planner calendar.
+ * Contains a droppable area for scheduled job cards.
+ */
 export default function DayColumn({ date, jobs, currentMonth }: DayColumnProps) {
   const isCurrentMonth = isSameMonth(date, currentMonth);
   const isDateToday = isToday(date);
@@ -35,7 +40,7 @@ export default function DayColumn({ date, jobs, currentMonth }: DayColumnProps) 
             }`}
           >
             {jobs.map((job, index) => (
-              <PlannerJobCard key={job.id} job={job} index={index} isScheduled={true} />
+              <PlannerJobCard key={job.id} job={job} index={index} isScheduled />
             ))}
             {provided.placeholder}
           </div>

@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { Calendar, X, AlertCircle } from 'lucide-react';
 
@@ -10,11 +11,20 @@ interface DeadlineModalProps {
   companyName: string;
 }
 
-export default function DeadlineModal({ isOpen, onClose, onConfirm, positionName, companyName }: DeadlineModalProps) {
+/**
+ * Modal that prompts user to set a past deadline when closing a job.
+ * Ensures that the selected date is strictly before the current time.
+ */
+export default function DeadlineModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  positionName,
+  companyName
+}: DeadlineModalProps) {
   const [selectedDate, setSelectedDate] = useState('');
   const [error, setError] = useState('');
 
-  // Set default data berupa tanggal terkini (format YYYY-MM-DDTHH:mm untuk datetime-local)
   useEffect(() => {
     if (isOpen) {
       const now = new Date();
@@ -23,7 +33,6 @@ export default function DeadlineModal({ isOpen, onClose, onConfirm, positionName
       const day = String(now.getDate()).padStart(2, '0');
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
-      
       setSelectedDate(`${year}-${month}-${day}T${hours}:${minutes}`);
       setError('');
     }
@@ -36,20 +45,16 @@ export default function DeadlineModal({ isOpen, onClose, onConfirm, positionName
     const chosenDate = new Date(selectedDate);
     const now = new Date();
 
-    // Validasi di Frontend: Pengisian harus lewat/kurang dari tanggal terkini (karena status CLOSED)
     if (chosenDate >= now) {
       setError('Tanggal deadline harus sudah lewat dari waktu saat ini untuk masuk ke status CLOSED.');
       return;
     }
-
     onConfirm(selectedDate);
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm select-none">
       <div className="bg-white w-full max-w-md rounded-2xl border border-slate-100 shadow-xl overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2 text-amber-600">
             <Calendar size={18} strokeWidth={2.2} />
@@ -60,7 +65,6 @@ export default function DeadlineModal({ isOpen, onClose, onConfirm, positionName
           </button>
         </div>
 
-        {/* Info Lowongan */}
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lowongan Kerja</p>
           <p className="text-xs font-bold text-slate-800 mt-0.5">{positionName}</p>
@@ -74,7 +78,6 @@ export default function DeadlineModal({ isOpen, onClose, onConfirm, positionName
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">

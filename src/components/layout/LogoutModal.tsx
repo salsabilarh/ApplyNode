@@ -1,4 +1,5 @@
 'use client';
+
 import { LogOut, X, AlertTriangle } from 'lucide-react';
 
 interface LogoutModalProps {
@@ -8,38 +9,37 @@ interface LogoutModalProps {
   isLoggingOut: boolean;
 }
 
+/**
+ * Confirmation modal for logout action.
+ * Prevents accidental logout and provides visual feedback during the process.
+ */
 export default function LogoutModal({ isOpen, onClose, onConfirm, isLoggingOut }: LogoutModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm select-none animate-fade-in">
-      {/* Container Modal */}
       <div className="bg-white w-full max-w-sm rounded-2xl border border-slate-100 shadow-2xl overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Batalkan via Tombol Pojok Atas */}
         <div className="flex justify-end -mt-2 -mr-2">
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             disabled={isLoggingOut}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            aria-label="Tutup"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Konten Utama */}
         <div className="flex flex-col items-center text-center mt-1">
           <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100/60 mb-4 shadow-sm">
             <AlertTriangle size={24} strokeWidth={2.2} />
           </div>
-          
           <h3 className="font-bold text-base text-slate-900 tracking-tight">Konfirmasi Keluar</h3>
           <p className="text-xs text-slate-400 mt-1.5 max-w-[260px] font-medium leading-relaxed">
             Apakah Anda yakin ingin mengakhiri sesi dan keluar dari aplikasi <span className="text-slate-700 font-semibold">ApplyNode</span>?
           </p>
         </div>
 
-        {/* Tombol Aksi */}
         <div className="flex gap-3 justify-center pt-5 mt-1">
           <button
             type="button"
@@ -49,7 +49,6 @@ export default function LogoutModal({ isOpen, onClose, onConfirm, isLoggingOut }
           >
             Batal
           </button>
-          
           <button
             type="button"
             onClick={onConfirm}
@@ -60,7 +59,6 @@ export default function LogoutModal({ isOpen, onClose, onConfirm, isLoggingOut }
             <span>{isLoggingOut ? 'Keluar...' : 'Ya, Keluar'}</span>
           </button>
         </div>
-
       </div>
     </div>
   );
