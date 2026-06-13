@@ -15,22 +15,17 @@ export async function middleware(request: NextRequest) {
   // Ambil token dari cookie
   const token = request.cookies.get('token')?.value;
 
-  // Jika tidak ada token atau token tidak valid, redirect ke login (untuk halaman web)
-  if (!token) {
+  // Logika jika tidak ada token atau token invalid
+  if (!token || !(await verifyJWT(token))) {
     if (pathname.startsWith('/api')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const url = new URL('/login', request.url);
-    return NextResponse.redirect(url);
-  }
 
-  const payload = await verifyJWT(token);
-  if (!payload) {
-    if (pathname.startsWith('/api')) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    // Buat response redirect dan hapus cookie
     const url = new URL('/login', request.url);
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete('token'); // Hapus token yang sudah kadaluarsa
+    return response;
   }
 
   return NextResponse.next();

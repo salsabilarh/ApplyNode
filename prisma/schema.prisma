@@ -50,7 +50,6 @@ model Job {
   openingDate      DateTime?
   priority         Priority   @default(MEDIUM)
   
-  // SEBELUMNYA: status Status @default(TO_BE_APPLY)
   status           JobStatus  @default(BACKLOG) // Diarahkan ke enum baru
   
   plannedApplyDate DateTime?
