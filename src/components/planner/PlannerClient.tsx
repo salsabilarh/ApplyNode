@@ -4,19 +4,41 @@ import { useEffect, useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import UnscheduledPool from './UnscheduledPool';
 import DayColumn from './DayColumn';
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  addMonths, 
-  subMonths
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  addMonths,
+  subMonths,
+  startOfDay,
 } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { CalendarDays, CalendarCheck, RefreshCw, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { enUS } from 'date-fns/locale'; // Gunakan locale Inggris
+import {
+  CalendarDays,
+  CalendarCheck,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+  Briefcase,
+} from 'lucide-react';
 import { Job } from '@/types/job';
+import AlertModal from '@/components/ui/AlertModal';
+
+const ADVANCED_STATUSES = [
+  'APPLIED',
+  'ADMIN_SCREENING',
+  'ASSESSMENT',
+  'FGD_LGD',
+  'INTERVIEW_HR',
+  'INTERVIEW_USER',
+  'INTERVIEW_EXECUTIVE',
+  'MEDICAL_CHECK_UP',
+  'OFFERING',
+];
 
 export default function PlannerClient() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -24,6 +46,24 @@ export default function PlannerClient() {
   const [syncing, setSyncing] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [showBacklog, setShowBacklog] = useState(true);
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+  const [confirmReschedule, setConfirmReschedule] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    jobPosition: string;
+    jobCompany: string;
+    newDate: string | null;
+  }>({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
+  const [confirmUnschedule, setConfirmUnschedule] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    jobPosition: string;
+    jobCompany: string;
+  }>({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '' });
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -32,11 +72,10 @@ export default function PlannerClient() {
       if (!res.ok) throw new Error('Failed to load data');
       const result = await res.json();
       const jobsData = result.success ? result.data : result;
-      
-      // Normalize: convert plannedApplyDate from ISO string to YYYY-MM-DD
       const normalizedJobs = (Array.isArray(jobsData) ? jobsData : []).map((job: any) => ({
         ...job,
         plannedApplyDate: job.plannedApplyDate ? job.plannedApplyDate.split('T')[0] : null,
+        appliedDate: job.appliedDate ? job.appliedDate.split('T')[0] : null,
         openingDate: job.openingDate ? job.openingDate.split('T')[0] : null,
         deadline: job.deadline ? job.deadline.split('T')[0] : null,
       }));
@@ -49,53 +88,146 @@ export default function PlannerClient() {
     }
   }, []);
 
+  const moveToBacklogAndClearDate = useCallback(async (jobId: string) => {
+    setSyncing(true);
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'BACKLOG', plannedApplyDate: null }),
+      });
+      if (!response.ok) throw new Error('Failed to move to backlog');
+      await fetchJobs();
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Failed',
+        message: 'Could not move job to backlog. Please try again.',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  }, [fetchJobs]);
+
+  const handleConfirmReschedule = useCallback(async () => {
+    const { jobId, newDate } = confirmReschedule;
+    if (!jobId) return;
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plannedApplyDate: newDate }),
+      });
+      if (!response.ok) throw new Error();
+      await fetchJobs();
+    } catch (error) {
+      setAlertModal({ isOpen: true, title: 'Failed', message: 'Could not reschedule.' });
+    } finally {
+      setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
+    }
+  }, [confirmReschedule, fetchJobs]);
+
+  const onDragEnd = useCallback(
+    async (result: DropResult) => {
+      const { source, destination, draggableId } = result;
+      if (!destination || source.droppableId === destination.droppableId) return;
+      const job = jobs.find((j) => j.id === draggableId);
+      if (!job) return;
+
+      if (job.appliedDate) {
+        setAlertModal({
+          isOpen: true,
+          title: 'Cannot Move',
+          message: `"${job.position}" at ${job.company} already has an applied date (${job.appliedDate}).\nYou cannot reschedule this job.`,
+        });
+        return;
+      }
+
+      if (job.plannedApplyDate) {
+        setConfirmReschedule({
+          isOpen: true,
+          jobId: job.id,
+          jobPosition: job.position,
+          jobCompany: job.company,
+          newDate: destination.droppableId === 'unscheduled' ? null : destination.droppableId,
+        });
+        return;
+      }
+
+      if (ADVANCED_STATUSES.includes(job.status)) {
+        if (destination.droppableId === 'unscheduled') {
+          setConfirmUnschedule({
+            isOpen: true,
+            jobId: job.id,
+            jobPosition: job.position,
+            jobCompany: job.company,
+          });
+          return;
+        } else {
+          setAlertModal({
+            isOpen: true,
+            title: 'Cannot Reschedule',
+            message: `"${job.position}" at ${job.company} has already been applied or is in advanced stage.\nYou cannot change its scheduled date.`,
+          });
+          return;
+        }
+      }
+
+      let newPlannedDate: string | null = null;
+      if (destination.droppableId !== 'unscheduled') {
+        newPlannedDate = destination.droppableId;
+        const today = startOfDay(new Date());
+        const selectedDate = startOfDay(new Date(newPlannedDate));
+        const deadlineDate = job.deadline ? startOfDay(new Date(job.deadline)) : null;
+        if (selectedDate < today) {
+          setAlertModal({ isOpen: true, title: 'Invalid Date', message: 'You cannot schedule a job on a past date. Please choose today or a future date.' });
+          return;
+        }
+        if (deadlineDate && selectedDate > deadlineDate) {
+          setAlertModal({ isOpen: true, title: 'Date Exceeds Deadline', message: `The selected date (${newPlannedDate}) is after the deadline (${job.deadline}).\nPlease choose a date on or before the deadline.` });
+          return;
+        }
+      }
+
+      const previousJobs = [...jobs];
+      setJobs((prev) =>
+        prev.map((j) => (j.id === draggableId ? { ...j, plannedApplyDate: newPlannedDate } : j))
+      );
+      setSyncing(true);
+      try {
+        const response = await fetch(`/api/jobs/${draggableId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plannedApplyDate: newPlannedDate }),
+        });
+        if (!response.ok) throw new Error('Failed to save schedule');
+        await fetchJobs();
+      } catch (error) {
+        setJobs(previousJobs);
+        setAlertModal({
+          isOpen: true,
+          title: 'Sync Failed',
+          message: 'Failed to sync schedule. Changes reverted. Please try again.',
+        });
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [jobs, fetchJobs]
+  );
+
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
-  const onDragEnd = useCallback(async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
-    if (!destination || source.droppableId === destination.droppableId) return;
-
-    const previousJobs = [...jobs];
-    let newPlannedDate: string | null = null;
-    if (destination.droppableId !== 'unscheduled') {
-      newPlannedDate = destination.droppableId; // YYYY-MM-DD
-    }
-
-    // Optimistic update
-    setJobs(prev =>
-      prev.map(job =>
-        job.id === draggableId ? { ...job, plannedApplyDate: newPlannedDate } : job
-      )
-    );
-    setSyncing(true);
-
-    try {
-      // Send to API in YYYY-MM-DD format (backend will convert to Date)
-      const response = await fetch(`/api/jobs/${draggableId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plannedApplyDate: newPlannedDate }),
-      });
-      if (!response.ok) throw new Error('Failed to save schedule');
-      await fetchJobs(); // refresh for consistency
-    } catch (error) {
-      setJobs(previousJobs);
-      alert('Failed to sync schedule. Changes reverted.');
-    } finally {
-      setSyncing(false);
-    }
-  }, [jobs, fetchJobs]);
-
-  const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
-  const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
+  const nextMonth = useCallback(() => setCurrentMonth((prev) => addMonths(prev, 1)), []);
+  const prevMonth = useCallback(() => setCurrentMonth((prev) => subMonths(prev, 1)), []);
 
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse p-1">
-        <div className="h-14 bg-slate-200 rounded-2xl w-full" />
-        <div className="h-[500px] bg-slate-100/80 rounded-2xl border border-slate-200/40 w-full" />
+        <div className="h-14 bg-neutral-200 rounded-2xl w-full" />
+        <div className="h-[500px] bg-neutral-100 rounded-2xl border border-neutral-200 w-full" />
       </div>
     );
   }
@@ -108,56 +240,69 @@ export default function PlannerClient() {
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
   const unscheduledJobs = safeJobs.filter(
-    job => !job.plannedApplyDate && (job.status === 'BACKLOG' || job.status === 'APPLYING')
+    (job) => !job.plannedApplyDate && (job.status === 'BACKLOG' || job.status === 'APPLYING')
   );
 
   const getJobsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    // Because plannedApplyDate is now in YYYY-MM-DD format, we can compare directly
-    return safeJobs.filter(job => job.plannedApplyDate === dateStr);
+    return safeJobs.filter((job) => {
+      const targetDate = job.appliedDate || job.plannedApplyDate;
+      return targetDate === dateStr;
+    });
   };
 
-  const scheduledCount = safeJobs.filter(j => j.plannedApplyDate).length;
+  const scheduledCount = safeJobs.filter((j) => j.plannedApplyDate).length;
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
-    <div className="space-y-5 max-w-[1400px] mx-auto">
-      {/* Header Widget */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm gap-4">
+    <div className="w-full space-y-5 pb-8">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <CalendarDays size={22} className="text-violet-600" strokeWidth={2.2} />
+          <div className="p-2 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl shadow-md shadow-primary-500/20">
+            <CalendarDays className="text-white" size={22} strokeWidth={2} />
+          </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl font-bold text-neutral-900 tracking-tight flex items-center gap-2">
               Application Planner
-              {syncing && <RefreshCw size={13} className="text-violet-500 animate-spin" />}
+              {syncing && <RefreshCw size={14} className="text-primary-500 animate-spin" />}
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              Drag & drop jobs to your planned application dates.
+            <p className="text-sm text-neutral-500 mt-0.5">
+              Drag & drop jobs to schedule your application dates
             </p>
           </div>
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-xl border border-violet-100/60">
-            <CalendarCheck size={13} /> {scheduledCount} Scheduled
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 bg-primary-50 px-3 py-1.5 rounded-full border border-primary-100">
+            <CalendarCheck size={14} /> {scheduledCount} Scheduled
           </span>
           <button
-            onClick={() => setShowBacklog(prev => !prev)}
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-              showBacklog ? 'bg-slate-800 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            onClick={() => setShowBacklog((prev) => !prev)}
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all ${
+              showBacklog
+                ? 'bg-neutral-800 text-white shadow-sm'
+                : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50'
             }`}
           >
-            <Inbox size={13} /> {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
+            <Inbox size={14} />
+            {showBacklog ? 'Hide Backlog' : 'Show Backlog'}
           </button>
-
-          <div className="flex items-center border border-slate-200 bg-slate-50/50 p-1 rounded-xl">
-            <button onClick={prevMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Previous month">
+          <div className="flex items-center border border-neutral-200 rounded-xl bg-white p-0.5 shadow-sm">
+            <button
+              onClick={prevMonth}
+              className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 transition-colors"
+              aria-label="Previous month"
+            >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-xs font-bold text-slate-800 px-3 min-w-[110px] text-center capitalize">
-              {format(currentMonth, 'MMMM yyyy', { locale: id })}
+            <span className="text-xs font-semibold text-neutral-800 px-3 min-w-[120px] text-center capitalize">
+              {format(currentMonth, 'MMMM yyyy', { locale: enUS })}
             </span>
-            <button onClick={nextMonth} className="p-1.5 hover:bg-white rounded-lg text-slate-600 active:scale-95 transition-all" aria-label="Next month">
+            <button
+              onClick={nextMonth}
+              className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 transition-colors"
+              aria-label="Next month"
+            >
               <ChevronRight size={16} />
             </button>
           </div>
@@ -171,16 +316,19 @@ export default function PlannerClient() {
               <UnscheduledPool jobs={unscheduledJobs} />
             </div>
           )}
-          <div className="flex-1 w-full bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
-              {dayNames.map(day => (
-                <div key={day} className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <div className="flex-1 w-full bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50/80">
+              {dayNames.map((day) => (
+                <div
+                  key={day}
+                  className="py-3 text-center text-[11px] font-bold uppercase tracking-wider text-neutral-500"
+                >
                   {day}
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-7 bg-slate-100 gap-[1px]">
-              {calendarDays.map(date => (
+            <div className="grid grid-cols-7 bg-neutral-100 gap-[1px]">
+              {calendarDays.map((date) => (
                 <DayColumn
                   key={date.toISOString()}
                   date={date}
@@ -192,6 +340,37 @@ export default function PlannerClient() {
           </div>
         </div>
       </DragDropContext>
+
+      {/* Modal for unscheduling advanced job */}
+      <AlertModal
+        isOpen={confirmUnschedule.isOpen}
+        onClose={() => setConfirmUnschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '' })}
+        title="Move to Backlog?"
+        message={`"${confirmUnschedule.jobPosition}" at ${confirmUnschedule.jobCompany} has already progressed.\n\nRemoving its scheduled date will move it back to "To Apply" (BACKLOG).\n\nDo you want to proceed?`}
+        onConfirm={() => {
+          moveToBacklogAndClearDate(confirmUnschedule.jobId);
+          setConfirmUnschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '' });
+        }}
+      />
+
+      {/* General alert modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ isOpen: false, title: '', message: '' })}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
+
+      {/* Confirmation modal for rescheduling */}
+      <AlertModal
+        isOpen={confirmReschedule.isOpen}
+        onClose={() => setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null })}
+        onConfirm={handleConfirmReschedule}
+        title="Confirm Schedule Change"
+        message={`You are about to change the planned apply date for "${confirmReschedule.jobPosition}" at ${confirmReschedule.jobCompany}.\n\nAre you sure?`}
+        confirmText="Yes, Change"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

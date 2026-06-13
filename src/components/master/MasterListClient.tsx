@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   Filter, Layers, Building2, AlertCircle, Activity, Briefcase,
-  Plus, Search, RotateCcw, Info, CalendarDays
+  Plus, Search, RotateCcw, Eye, CalendarDays, Clock, TrendingUp
 } from 'lucide-react';
 
 interface Job {
@@ -24,7 +24,7 @@ interface MasterListClientProps {
 
 /**
  * Master data table with advanced filtering, search, and responsive design.
- * Displays all job applications in a sortable/filterable list.
+ * Optimized for consistency with global design system.
  */
 export default function MasterListClient({ initialJobs }: MasterListClientProps) {
   const [search, setSearch] = useState('');
@@ -58,19 +58,20 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
   }, [initialJobs, search, filterPlatform, filterCompany, filterPriority, filterStatus]);
 
   const getDaysSinceOpened = (openingDateStr?: string | null) => {
-    if (!openingDateStr) return '-';
+    if (!openingDateStr) return <span className="text-neutral-400 text-xs">—</span>;
     const openDate = new Date(openingDateStr);
     const today = new Date();
     openDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((today.getTime() - openDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return 'Not opened yet';
-    return diffDays === 0 ? 'Today' : `${diffDays} days`;
+    if (diffDays < 0) return <span className="text-neutral-500 text-xs">Not opened yet</span>;
+    if (diffDays === 0) return <span className="text-primary-600 font-semibold text-xs">Today</span>;
+    return <span className="text-neutral-700 text-xs">{diffDays} days</span>;
   };
 
   const getDeadlineBadge = (deadlineStr: string) => {
     const rawDate = deadlineStr.split('T')[0];
-    if (!rawDate) return <span className="text-slate-400">-</span>;
+    if (!rawDate) return <span className="text-neutral-400">—</span>;
     const parts = rawDate.split('-');
     const deadlineDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     const today = new Date();
@@ -82,179 +83,203 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
     if (diffDays < 0) {
       return (
         <div className="flex flex-col">
-          <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-          <span className="text-[10px] text-rose-600 font-bold mt-0.5">Expired</span>
+          <span className="text-neutral-600 text-xs font-medium">{formatted}</span>
+          <span className="text-[10px] text-danger-600 font-bold mt-0.5 bg-danger-50 px-1.5 py-0.5 rounded-md w-fit">Expired</span>
         </div>
       );
     } else if (diffDays === 0) {
       return (
         <div className="flex flex-col">
-          <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-          <span className="text-[10px] text-amber-600 font-bold mt-0.5 animate-pulse">Last day!</span>
+          <span className="text-neutral-600 text-xs font-medium">{formatted}</span>
+          <span className="text-[10px] text-warning-600 font-bold mt-0.5 bg-warning-50 px-1.5 py-0.5 rounded-md w-fit animate-pulse">Last day!</span>
         </div>
       );
     }
     return (
       <div className="flex flex-col">
-        <span className="text-slate-700 font-medium text-xs">{formatted}</span>
-        <span className="text-[10px] text-blue-600 font-semibold mt-0.5 bg-blue-50 px-1.5 py-0.5 rounded-md w-fit">{diffDays} days left</span>
+        <span className="text-neutral-600 text-xs font-medium">{formatted}</span>
+        <span className="text-[10px] text-primary-600 font-semibold mt-0.5 bg-primary-50 px-1.5 py-0.5 rounded-md w-fit">{diffDays} days left</span>
       </div>
     );
   };
 
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return <span className="badge badge-danger text-[10px] font-bold">HIGH</span>;
+      case 'MEDIUM':
+        return <span className="badge badge-warning text-[10px] font-bold">MEDIUM</span>;
+      default:
+        return <span className="badge badge-neutral text-[10px] font-bold">LOW</span>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const isClosed = status === 'CLOSED';
+    const isApplied = status === 'APPLIED';
+    const isBacklog = ['BACKLOG', 'APPLYING'].includes(status);
+    if (isClosed) return <span className="badge badge-neutral">Closed</span>;
+    if (isApplied) return <span className="badge badge-primary">Applied</span>;
+    if (isBacklog) return <span className="badge badge-warning">In Progress</span>;
+    return <span className="badge badge-neutral">{status.replace(/_/g, ' ')}</span>;
+  };
+
   return (
-    <div className="w-full space-y-4 select-none">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm gap-4">
-        <div className="flex items-center gap-2.5">
-          <Briefcase className="text-blue-600" size={22} strokeWidth={2.2} />
+    <div className="w-full space-y-5 pb-8">
+      {/* Header Section */}
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-br from-primary-500 to-indigo-600 rounded-xl shadow-md shadow-primary-500/20">
+            <Briefcase className="text-white" size={22} strokeWidth={2} />
+          </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Master Data</h1>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              All job applications with advanced filtering and search capabilities.
+            <h1 className="text-xl font-bold text-neutral-900 tracking-tight">Job Master Data</h1>
+            <p className="text-sm text-neutral-500 mt-0.5">
+              Manage and track all job applications in one place
             </p>
           </div>
         </div>
         <Link
           href="/jobs/new"
-          className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl active:scale-95 transition-all shadow-sm self-start md:self-center"
+          className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-sm self-start md:self-center"
         >
-          <Plus size={14} strokeWidth={2.5} /> Add Job
+          <Plus size={16} strokeWidth={2} /> Add New Job
         </Link>
       </div>
 
-      {/* Filter Panel */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3 text-slate-400" size={16} />
+      {/* Filter Panel - Enhanced */}
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+        <div className="p-5 pb-3 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-primary-500" />
+            <h2 className="text-sm font-semibold text-neutral-700">Filters</h2>
+            {(filterPlatform || filterCompany || filterPriority || filterStatus || search) && (
+              <button
+                onClick={handleResetFilters}
+                className="ml-2 flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1 rounded-lg transition-colors"
+              >
+                <RotateCcw size={12} /> Reset
+              </button>
+            )}
+          </div>
+          <div className="text-xs text-neutral-500 bg-neutral-50 px-3 py-1 rounded-full">
+            {filteredJobs.length} of {initialJobs.length} jobs
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
             <input
               type="text"
               placeholder="Search by position or company..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-neutral-800 outline-none focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
             />
           </div>
-          {(filterPlatform || filterCompany || filterPriority || filterStatus || search) && (
-            <button
-              onClick={handleResetFilters}
-              className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
-            >
-              <RotateCcw size={14} /> Clear
-            </button>
-          )}
-        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="relative">
-            <Layers className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={14} />
-            <select
-              value={filterPlatform}
-              onChange={(e) => setFilterPlatform(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
-            >
-              <option value="">All Platforms</option>
-              {uniquePlatforms.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div className="relative">
-            <Building2 className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={14} />
-            <select
-              value={filterCompany}
-              onChange={(e) => setFilterCompany(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
-            >
-              <option value="">All Companies</option>
-              {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="relative">
-            <AlertCircle className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={14} />
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
-            >
-              <option value="">All Priorities</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-          <div className="relative">
-            <Activity className="absolute left-3 top-3 text-slate-400 pointer-events-none" size={14} />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200/70 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-600 outline-none appearance-none cursor-pointer focus:border-blue-500 focus:bg-white transition-all font-medium"
-            >
-              <option value="">All Statuses</option>
-              {uniqueStatuses.map(status => (
-                <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+          {/* Filter Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="relative">
+              <Layers className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={14} />
+              <select
+                value={filterPlatform}
+                onChange={(e) => setFilterPlatform(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-700 outline-none appearance-none cursor-pointer focus:border-primary-400 focus:bg-white transition-all"
+              >
+                <option value="">All Platforms</option>
+                {uniquePlatforms.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="relative">
+              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={14} />
+              <select
+                value={filterCompany}
+                onChange={(e) => setFilterCompany(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-700 outline-none appearance-none cursor-pointer focus:border-primary-400 focus:bg-white transition-all"
+              >
+                <option value="">All Companies</option>
+                {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="relative">
+              <AlertCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={14} />
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-700 outline-none appearance-none cursor-pointer focus:border-primary-400 focus:bg-white transition-all"
+              >
+                <option value="">All Priorities</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+            <div className="relative">
+              <Activity className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={14} />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl pl-9 pr-3 py-2.5 text-sm text-neutral-700 outline-none appearance-none cursor-pointer focus:border-primary-400 focus:bg-white transition-all"
+              >
+                <option value="">All Statuses</option>
+                {uniqueStatuses.map(status => (
+                  <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Table Section - Responsive with hover effects */}
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Position & Company</th>
-                <th className="py-3 px-4">Platform</th>
-                <th className="py-3 px-4">Days Open</th>
-                <th className="py-3 px-4">Deadline</th>
-                <th className="py-3 px-4 text-center">Priority</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Actions</th>
-               </tr>
+              <tr className="bg-neutral-50/80 border-b border-neutral-200 text-[11px] font-bold text-neutral-500 uppercase tracking-wider">
+                <th className="py-3.5 px-5">Position & Company</th>
+                <th className="py-3.5 px-5">Platform</th>
+                <th className="py-3.5 px-5">Days Open</th>
+                <th className="py-3.5 px-5">Deadline</th>
+                <th className="py-3.5 px-5 text-center">Priority</th>
+                <th className="py-3.5 px-5 text-center">Status</th>
+                <th className="py-3.5 px-5 text-center">Actions</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+            <tbody className="divide-y divide-neutral-100">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                    No matching job data found.
+                  <td colSpan={7} className="text-center py-12 text-neutral-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Briefcase size={32} className="text-neutral-300" />
+                      <p className="text-sm font-medium">No matching job data found.</p>
+                      <button onClick={handleResetFilters} className="text-primary-600 text-xs underline">Clear filters</button>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredJobs.map(job => (
-                  <tr key={job.id} className="hover:bg-slate-50/40 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-800">{job.position}</div>
-                      <div className="text-slate-400 text-[11px] font-medium mt-0.5">{job.company}</div>
+                  <tr key={job.id} className="group hover:bg-neutral-50/60 transition-colors duration-150">
+                    <td className="py-3.5 px-5">
+                      <div className="font-semibold text-neutral-900 text-sm">{job.position}</div>
+                      <div className="text-neutral-500 text-xs mt-0.5 flex items-center gap-1">
+                        <Building2 size={10} /> {job.company}
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-500">{job.platform}</td>
-                    <td className="py-3.5 px-4 text-slate-500 font-medium">{getDaysSinceOpened(job.openingDate)}</td>
-                    <td className="py-3.5 px-4">{getDeadlineBadge(job.deadline)}</td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${
-                        job.priority === 'HIGH' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                        job.priority === 'MEDIUM' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {job.priority}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className={`inline-block px-2.5 py-1 rounded-xl text-[10px] font-bold ${
-                        job.status === 'CLOSED' ? 'bg-slate-100 text-slate-500' :
-                        job.status === 'APPLIED' ? 'bg-blue-50 text-blue-600' :
-                        ['BACKLOG', 'APPLYING'].includes(job.status) ? 'bg-amber-50 text-amber-600' :
-                        'bg-purple-50 text-purple-600'
-                      }`}>
-                        {job.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-5 text-sm text-neutral-600 font-medium">{job.platform}</td>
+                    <td className="py-3.5 px-5">{getDaysSinceOpened(job.openingDate)}</td>
+                    <td className="py-3.5 px-5">{getDeadlineBadge(job.deadline)}</td>
+                    <td className="py-3.5 px-5 text-center">{getPriorityBadge(job.priority)}</td>
+                    <td className="py-3.5 px-5 text-center">{getStatusBadge(job.status)}</td>
+                    <td className="py-3.5 px-5 text-center">
                       <Link
-                        href={`/jobs/${job.id}/edit`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all font-semibold text-[10px]"
+                        href={`/jobs/${job.id}/view`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 transition-all font-semibold text-[11px] group-hover:shadow-sm"
                       >
-                        <Info size={14} /> Details
+                        <Eye size={13} /> Details
                       </Link>
                     </td>
                   </tr>
@@ -263,8 +288,15 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
             </tbody>
           </table>
         </div>
-        <div className="p-3.5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] font-medium text-slate-400">
-          <span>Showing {filteredJobs.length} of {initialJobs.length} jobs</span>
+        {/* Footer summary */}
+        <div className="p-3.5 bg-neutral-50/50 border-t border-neutral-200 flex justify-between items-center text-xs text-neutral-500 font-medium">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={14} />
+            <span>Showing <strong className="text-neutral-700">{filteredJobs.length}</strong> of {initialJobs.length} jobs</span>
+          </div>
+          <div className="flex gap-3">
+            <span className="flex items-center gap-1"><Clock size={12} /> Active deadlines shown</span>
+          </div>
         </div>
       </div>
     </div>

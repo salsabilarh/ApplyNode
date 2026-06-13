@@ -6,7 +6,7 @@ import { BriefcaseBusiness, Lock, Mail, Loader2, Eye, EyeOff } from 'lucide-reac
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false); // State untuk toggle password
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function LoginPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Email atau password salah');
+      if (!res.ok) throw new Error(data.error || 'Invalid email or password');
 
       router.refresh();
       router.push('/');
@@ -43,9 +43,9 @@ export default function LoginPage() {
           <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl shadow-md shadow-blue-500/20 mb-3">
             <BriefcaseBusiness className="text-white" size={22} strokeWidth={2.2} />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Masuk ke ApplyNode</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Sign in to ApplyNode</h2>
           <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-            Pantau status dan kelola rencana eksekusi berkas lamaran kerja Anda.
+            Monitor your job application status and manage your execution plans.
           </p>
         </div>
 
@@ -57,7 +57,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Alamat Email</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
             <div className="relative">
               <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -75,18 +75,17 @@ export default function LoginPage() {
             <div className="relative">
               <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type={showPassword ? 'text' : 'password'} // Tipe input berubah dinamis
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl pl-10 pr-11 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 transition-all font-medium"
               />
-              {/* Tombol Toggle Mata */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
-                title={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                title={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -101,18 +100,18 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
-                <span>Memvalidasi Sesi...</span>
+                <span>Validating session...</span>
               </>
             ) : (
-              <span>Masuk Aplikasi</span>
+              <span>Sign In</span>
             )}
           </button>
         </form>
 
         <div className="text-center text-xs text-slate-400 mt-6 font-medium">
-          Belum memiliki akun?{' '}
+          Don't have an account?{' '}
           <Link href="/register" className="text-blue-600 font-bold hover:underline transition-all">
-            Registrasi akun baru
+            Register new account
           </Link>
         </div>
       </div>

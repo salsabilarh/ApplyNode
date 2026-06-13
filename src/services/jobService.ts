@@ -2,12 +2,14 @@ import { prisma } from '@/lib/prisma';
 import { JobStatus } from '@prisma/client';
 
 export async function getJobsByUser(userId: string) {
-  const now = new Date();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0); // deadline < startOfToday = deadline sebelum hari ini
+
   await prisma.job.updateMany({
     where: {
       userId,
       status: { not: 'CLOSED' },
-      deadline: { lt: now },
+      deadline: { lt: startOfToday }, // hanya deadline yang benar-benar lewat
     },
     data: { status: 'CLOSED' },
   });
@@ -20,8 +22,12 @@ export async function getJobsByUser(userId: string) {
 
 export async function createJob(userId: string, data: any) {
   const deadlineDate = data.deadline ? new Date(data.deadline) : new Date();
-  const initialStatus = deadlineDate < new Date() ? 'CLOSED' : (data.status || 'BACKLOG');
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
+  // Deadline kemarin (< hari ini) → CLOSED, selain itu BACKLOG
+  const initialStatus = deadlineDate < startOfToday ? 'CLOSED' : (data.status || 'BACKLOG');
+  
   return prisma.job.create({
     data: {
       userId,
@@ -71,12 +77,23 @@ export async function updateJob(jobId: string, userId: string, data: any) {
 
   // Konversi tanggal
   if (data.deadline !== undefined) {
-    const newDeadline = new Date(data.deadline);
-    updatePayload.deadline = newDeadline;
-    if (existing.status === 'CLOSED' && newDeadline >= now) {
-      updatePayload.status = JobStatus.BACKLOG;
-    }
+  const newDeadline = new Date(data.deadline);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  updatePayload.deadline = newDeadline;
+
+  // Jika job sedang aktif (BACKLOG/APPLYING) dan deadline baru < hari ini → tutup
+  if (
+    (existing.status === 'BACKLOG' || existing.status === 'APPLYING') &&
+    newDeadline < startOfToday
+  ) {
+    updatePayload.status = JobStatus.CLOSED;
   }
+  // Jika job CLOSED dan deadline baru >= hari ini → buka kembali
+  else if (existing.status === 'CLOSED' && newDeadline >= startOfToday) {
+    updatePayload.status = JobStatus.BACKLOG;
+  }
+}
   if (data.openingDate !== undefined) {
     updatePayload.openingDate = data.openingDate ? new Date(data.openingDate) : null;
   }
@@ -86,6 +103,10 @@ export async function updateJob(jobId: string, userId: string, data: any) {
   if (data.status !== undefined) {
     updatePayload.status = data.status;
   }
+
+  if (data.status === 'APPLIED' && !existing.appliedDate) {
+  updatePayload.appliedDate = new Date();
+}
 
   return prisma.job.update({
     where: { id: jobId },

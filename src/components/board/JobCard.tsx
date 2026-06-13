@@ -2,7 +2,7 @@
 
 import { Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Building2, ArrowUpRight, Trash2, CalendarDays } from 'lucide-react';
+import { Building2, ArrowUpRight, Trash2, CalendarDays, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useModal } from '@/context/ModalContext';
 import { getDaysLeft, formatDateShort, getPriorityClass } from '@/lib/utils';
 import { Job } from '@/types/job';
@@ -33,70 +33,97 @@ export default function JobCard({ job, index }: JobCardProps) {
     });
   };
 
+  const getStatusBadge = () => {
+    if (isClosed) return 'neutral';
+    if (isAppliedStatus) return 'success';
+    if (isUrgent && daysLeft <= 3) return 'danger';
+    if (isUrgent) return 'warning';
+    return 'neutral';
+  };
+
+  const statusBadgeType = getStatusBadge();
+
   return (
-    <Draggable draggableId={job.id} index={index} isDragDisabled={isClosed}>
+    // Drag diaktifkan untuk semua kartu (termasuk CLOSED)
+    <Draggable draggableId={job.id} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`p-3 bg-white border border-slate-100 rounded-xl relative select-none transition-all duration-200 ${
-            isClosed ? 'opacity-65 bg-slate-50/60 border-slate-200/60 cursor-not-allowed' : 'cursor-grab hover:border-slate-300 hover:shadow-sm'
-          }`}
+          className={`group relative bg-white border rounded-xl p-3 transition-all duration-200 ${
+            isClosed
+              ? 'border-neutral-200 bg-neutral-50/60 opacity-70 cursor-grab' // tetap grab
+              : 'border-neutral-200 hover:border-primary-300 hover:shadow-md hover:-translate-y-0.5 cursor-grab active:cursor-grabbing'
+          } ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary-500/20 rotate-1' : ''}`}
         >
+          {/* Header */}
           <div className="flex justify-between items-start gap-2 mb-1.5">
-            <h3 className={`font-semibold text-sm ${isClosed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+            <h3 className={`font-semibold text-sm leading-tight ${
+              isClosed ? 'text-neutral-500 line-through' : 'text-neutral-800'
+            }`}>
               {job.position}
             </h3>
-            {/* Tampilkan indikator H-X jika urgent */}
             {isUrgent && (
-              <span className="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-bold animate-pulse whitespace-nowrap">
+              <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                daysLeft <= 3
+                  ? 'bg-danger-50 text-danger-600 animate-pulse'
+                  : 'bg-warning-50 text-warning-600'
+              }`}>
+                <AlertCircle size={12} />
                 {daysLeft === 0 ? 'Due Today' : `H-${daysLeft}`}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3">
-            <Building2 size={13} />
-            <span className="line-clamp-1">{job.company}</span>
+          {/* Company */}
+          <div className="flex items-center gap-1.5 text-xs text-neutral-500 mb-2.5">
+            <Building2 size={14} />
+            <span className="line-clamp-1 font-medium">{job.company}</span>
           </div>
 
-          <div className="pt-2.5 border-t border-slate-100 flex justify-between items-center">
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${priorityMeta.wrapper}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${priorityMeta.dot}`} />
-              {priorityMeta.label}
-            </span>
-
+          {/* Footer */}
+          <div className="pt-2.5 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${priorityMeta.wrapper}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${priorityMeta.dot}`} />
+                {priorityMeta.label}
+              </span>
+              <span className={`badge badge-${statusBadgeType} text-[11px]`}>
+                {isClosed ? 'Closed' : isAppliedStatus ? 'In Progress' : 'Open'}
+              </span>
+            </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleDelete}
-                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                className="p-1.5 text-neutral-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors"
                 aria-label="Delete job"
               >
                 <Trash2 size={14} />
               </button>
               <Link
-                href={`/jobs/${job.id}/edit`}
-                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                aria-label="Edit job"
+                href={`/jobs/${job.id}/view`}
+                className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                aria-label="View job details"
               >
                 <ArrowUpRight size={14} />
               </Link>
             </div>
           </div>
 
+          {/* Extra info */}
           {!isClosed && isUrgent && (
-            <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
-              <CalendarDays size={10} />
+            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-neutral-500 bg-neutral-50 rounded-lg px-2 py-1 w-fit">
+              <CalendarDays size={11} />
               <span>Deadline: {formatDateShort(new Date(job.deadline))}</span>
             </div>
           )}
-          {/* {!isClosed && !isAppliedStatus && daysLeft <= 3 && daysLeft >= 0 && (
-            <div className="mt-2 text-[10px] text-rose-500 font-bold flex items-center gap-1 bg-rose-50/50 p-1.5 rounded-lg border border-rose-100">
-              <CalendarDays size={10} />
-              <span>Expiring in {daysLeft === 0 ? 'today' : `${daysLeft} days`}</span>
+          {!isClosed && isAppliedStatus && (
+            <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-success-600 bg-success-50 rounded-lg px-2 py-1 w-fit">
+              <CheckCircle2 size={11} />
+              <span>Application active</span>
             </div>
-          )} */}
+          )}
         </div>
       )}
     </Draggable>

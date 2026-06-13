@@ -1,35 +1,45 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, X, AlertCircle, Clock } from 'lucide-react';
+import { Calendar, AlertCircle, X, CheckCircle2 } from 'lucide-react';
 
-interface DeadlineModalProps {
+interface ApplyDateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (selectedDate: string) => void;
+  onConfirm: (appliedDate: string) => void;
   positionName: string;
   companyName: string;
+  targetStatus: string;
 }
 
-export default function DeadlineModal({
+export default function ApplyDateModal({
   isOpen,
   onClose,
   onConfirm,
   positionName,
-  companyName
-}: DeadlineModalProps) {
+  companyName,
+  targetStatus,
+}: ApplyDateModalProps) {
   const [selectedDate, setSelectedDate] = useState('');
   const [error, setError] = useState('');
 
+  // Helper: dapatkan hari ini dalam format YYYY-MM-DD (lokal)
+  const getTodayString = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  // VALIDASI: tidak ada batasan tanggal (boleh masa lalu, hari ini, atau masa depan)
+  const validateDate = (date: string) => {
+    if (!date) return 'Please select a date.';
+    // Tidak ada penolakan berdasarkan perbandingan dengan hari ini
+    return '';
+  };
+
   useEffect(() => {
     if (isOpen) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      setSelectedDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+      // Default ke hari ini
+      setSelectedDate(getTodayString());
       setError('');
     }
   }, [isOpen]);
@@ -38,11 +48,9 @@ export default function DeadlineModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const chosenDate = new Date(selectedDate);
-    const now = new Date();
-
-    if (chosenDate >= now) {
-      setError('Deadline must be in the past to close this job.');
+    const validationError = validateDate(selectedDate);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     onConfirm(selectedDate);
@@ -51,26 +59,30 @@ export default function DeadlineModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm">
       <div className="bg-white w-full max-w-md rounded-2xl border border-neutral-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-neutral-100">
-          <div className="flex items-center gap-2 text-amber-600">
-            <Calendar size={20} strokeWidth={1.8} />
-            <h3 className="font-bold text-base text-neutral-900">Confirm Job Closure</h3>
+          <div className="flex items-center gap-2 text-primary-600">
+            <CheckCircle2 size={20} strokeWidth={1.8} />
+            <h3 className="font-bold text-base text-neutral-900">Record Application Date</h3>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
+        {/* Job info */}
         <div className="p-5 bg-neutral-50 border-b border-neutral-100">
-          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wide">Job Details</p>
+          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wide">
+            Moving to: {targetStatus.replace(/_/g, ' ')}
+          </p>
           <p className="text-sm font-bold text-neutral-800 mt-1">{positionName}</p>
           <p className="text-sm text-neutral-600">{companyName}</p>
         </div>
 
+        {/* Error message */}
         {error && (
           <div className="mx-5 mt-5 p-3 bg-danger-50 text-danger-700 text-xs rounded-xl border border-danger-200 flex gap-2 items-start">
             <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
@@ -81,13 +93,14 @@ export default function DeadlineModal({
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div>
             <label className="block text-xs font-bold text-neutral-600 mb-1.5 uppercase tracking-wide">
-              Deadline
+              Applied Date
             </label>
             <div className="relative">
               <input
-                type="datetime-local"
+                type="date"
                 required
                 value={selectedDate}
+                // Hapus atribut max agar bisa memilih tanggal masa depan
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
                   if (error) setError('');
@@ -95,7 +108,9 @@ export default function DeadlineModal({
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-800 font-medium outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
               />
             </div>
-            <p className="text-[11px] text-neutral-500 mt-1.5">Set the exact date and time when this job opportunity ended.</p>
+            <p className="text-[11px] text-neutral-500 mt-1.5">
+              You can set today, a past date, or a future date.
+            </p>
           </div>
 
           <div className="flex gap-3 justify-end pt-2">
@@ -110,7 +125,7 @@ export default function DeadlineModal({
               type="submit"
               className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95"
             >
-              Confirm & Close
+              Confirm & Move
             </button>
           </div>
         </form>

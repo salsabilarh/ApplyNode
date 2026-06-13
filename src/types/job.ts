@@ -8,7 +8,9 @@ export interface Job {
   company: string;
   platform: string;
   sourceLink: string | null;
+  applyLink: string | null;
   description: string | null;
+  requirement: string | null;
   duration: string | null;
   deadline: string;
   openingDate: string | null;
@@ -16,6 +18,7 @@ export interface Job {
   status: JobStatus;
   plannedApplyDate: string | null;
   plannedApplyTime: string | null;
+  appliedDate: string | null;
   applyNotes: string | null;
   notes: string | null;
   createdAt: string;

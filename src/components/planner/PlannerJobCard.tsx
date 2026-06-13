@@ -1,7 +1,7 @@
 'use client';
 
 import { Draggable } from '@hello-pangea/dnd';
-import { Edit2 } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Job } from '@/types/job';
 
@@ -11,44 +11,48 @@ interface PlannerJobCardProps {
   isScheduled: boolean;
 }
 
-/**
- * Compact draggable job card used inside planner calendar cells.
- * Shows minimal info (position, company, priority dot) and an edit link on hover.
- */
 export default function PlannerJobCard({ job, index, isScheduled }: PlannerJobCardProps) {
-  const priorityColors = {
-    HIGH: 'bg-red-500',
-    MEDIUM: 'bg-amber-500',
-    LOW: 'bg-emerald-500'
-  }[job.priority];
+  const priorityColors = { HIGH: 'bg-danger-500', MEDIUM: 'bg-warning-500', LOW: 'bg-success-500' }[job.priority] || 'bg-neutral-400';
+  const hasAppliedDate = !!job.appliedDate;
 
   return (
-    <Draggable draggableId={job.id} index={index}>
+    <Draggable draggableId={job.id} index={index} isDragDisabled={hasAppliedDate}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-slate-50 rounded-md p-1.5 border border-slate-200/60 flex items-start gap-1.5 select-none cursor-grab active:cursor-grabbing hover:bg-white hover:shadow-sm transition-all text-left group relative ${
-            snapshot.isDragging ? 'shadow-xl scale-105 border-violet-500 bg-white z-50 ring-2 ring-violet-500/10' : ''
-          }`}
+          className={`group relative bg-white rounded-lg p-2 border border-neutral-200 flex items-start gap-2 select-none transition-all ${
+            hasAppliedDate 
+              ? 'opacity-75 cursor-default border-neutral-100' 
+              : 'cursor-grab active:cursor-grabbing hover:shadow-sm hover:border-primary-300'
+          } ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary-500/20 scale-105 z-50 border-primary-400' : ''}`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${priorityColors || 'bg-slate-300'}`} />
-          <div className="bg-white min-w-0 flex-1 leading-tight pr-4">
-            <h4 className="font-bold text-[10px] text-slate-800 tracking-tight line-clamp-1">
+          {/* Priority dot */}
+          <span
+            className={`w-2 h-2 rounded-full mt-0.5 flex-shrink-0 ${priorityColors}`}
+          />
+          {/* Job info */}
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-[11px] text-neutral-800 leading-tight truncate">
               {job.position}
             </h4>
-            <p className="text-[9px] text-slate-400 font-medium truncate">
-              {job.company}
-            </p>
+            <p className="text-[10px] text-neutral-500 truncate mt-0.5">{job.company}</p>
           </div>
+          {/* Quick view link */}
           <Link
-            href={`/jobs/${job.id}/edit`}
-            className="absolute right-1 top-1.5 p-1 rounded bg-slate-100 hover:bg-blue-50 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-150"
-            aria-label="Edit Lowongan"
+            href={`/jobs/${job.id}/view`}
+            className="absolute right-1.5 top-1.5 p-1 rounded-md bg-neutral-100 text-neutral-400 opacity-0 group-hover:opacity-100 hover:bg-primary-50 hover:text-primary-600 transition-all"
+            aria-label="View job details"
           >
-            <Edit2 size={8} strokeWidth={2.5} />
+            <Eye size={10} strokeWidth={2.5} />
           </Link>
+          {/* Badge Applied (di dalam div, bukan di luar Draggable) */}
+          {hasAppliedDate && (
+            <span className="absolute bottom-1 right-1 bg-green-100 text-green-700 text-[8px] px-1 py-0.5 rounded-full">
+              Applied
+            </span>
+          )}
         </div>
       )}
     </Draggable>

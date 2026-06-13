@@ -4,23 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutGrid, Calendar, PlusCircle, TableProperties, User } from 'lucide-react';
 
-/**
- * Mobile bottom navigation bar that provides quick access to main routes.
- * Shows active indicator and uses subtle animations for better UX.
- */
 export default function BottomNav() {
   const pathname = usePathname();
 
   const links = [
     { href: '/', label: 'Board', icon: LayoutGrid },
     { href: '/planner', label: 'Planner', icon: Calendar },
-    { href: '/jobs', label: 'Jobs', icon: TableProperties },
+    { href: '/jobs', label: 'Data', icon: TableProperties },
     { href: '/jobs/new', label: 'Add', icon: PlusCircle },
     { href: '/profile', label: 'Profile', icon: User },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 flex justify-around items-center py-2 md:hidden z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-neutral-200 flex justify-around items-center py-1.5 md:hidden z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] px-2 pb-safe">
       {links.map(({ href, label, icon: Icon }) => {
         const isActive = pathname === href;
         return (
@@ -28,19 +24,23 @@ export default function BottomNav() {
             key={href}
             href={href}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center flex-1 py-1 text-[10px] font-medium transition-all duration-200 rounded-xl gap-0.5 relative ${
+            className={`group flex flex-col items-center justify-center flex-1 py-1.5 text-[11px] font-medium transition-all duration-200 rounded-xl gap-0.5 relative ${
               isActive 
-                ? 'text-blue-600 font-semibold' 
-                : 'text-slate-400 hover:text-slate-600'
+                ? 'text-primary-600' 
+                : 'text-neutral-500 hover:text-neutral-700'
             }`}
           >
             {isActive && (
-              <span className="absolute top-0 w-4 h-0.5 bg-blue-600 rounded-full" />
+              <span className="absolute -top-1.5 w-5 h-0.5 bg-primary-500 rounded-full shadow-sm" />
             )}
-            <div className={`p-1.5 rounded-xl ${isActive ? 'bg-blue-50 text-blue-600' : 'bg-transparent'}`}>
-              <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+            <div className={`p-1.5 rounded-xl transition-all ${
+              isActive 
+                ? 'bg-primary-50 text-primary-600' 
+                : 'bg-transparent group-hover:bg-neutral-100'
+            }`}>
+              <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
             </div>
-            <span>{label}</span>
+            <span className="text-[10px] font-medium">{label}</span>
           </Link>
         );
       })}
