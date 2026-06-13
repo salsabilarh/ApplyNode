@@ -85,7 +85,7 @@ export default function JobCard({ job, index }: JobCardProps) {
             </div>
           </div>
 
-          {!isClosed && !isUrgent && (
+          {!isClosed && isUrgent && (
             <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-1">
               <CalendarDays size={10} />
               <span>Deadline: {formatDateShort(new Date(job.deadline))}</span>
