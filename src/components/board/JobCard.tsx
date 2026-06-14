@@ -60,7 +60,7 @@ export default function JobCard({ job, index }: JobCardProps) {
           {/* Header */}
           <div className="flex justify-between items-start gap-2 mb-1.5">
             <h3 className={`font-semibold text-sm leading-tight ${
-              isClosed ? 'text-neutral-500 line-through' : 'text-neutral-800'
+              isClosed ? 'text-neutral-500' : 'text-neutral-800'
             }`}>
               {job.position}
             </h3>
