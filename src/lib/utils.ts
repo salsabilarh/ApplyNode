@@ -1,4 +1,21 @@
+// lib/utils.ts
 import { PRIORITY_META, MONTH_NAMES_ID } from '@/constants';
+
+// Urutan status sesuai tahapan rekrutmen (dari awal ke akhir)
+export const STATUS_ORDER = [
+  'BACKLOG',
+  'APPLYING',
+  'APPLIED',
+  'ADMIN_SCREENING',
+  'ASSESSMENT',
+  'FGD_LGD',
+  'INTERVIEW_HR',
+  'INTERVIEW_USER',
+  'INTERVIEW_EXECUTIVE',
+  'MEDICAL_CHECK_UP',
+  'OFFERING',
+  'CLOSED'
+];
 
 /**
  * Normalize a date to UTC midnight for consistent day comparison.
@@ -37,4 +54,39 @@ export function formatDateForInput(date: Date | string | null): string {
  */
 export function getPriorityClass(priority: 'HIGH' | 'MEDIUM' | 'LOW') {
   return PRIORITY_META[priority];
+}
+
+export const statusToDateField: Record<string, string> = {
+  APPLIED: 'appliedDate',
+  ADMIN_SCREENING: 'adminScreeningDate',
+  ASSESSMENT: 'assessmentDate',
+  FGD_LGD: 'fgdLgdDate',
+  INTERVIEW_HR: 'interviewHrDate',
+  INTERVIEW_USER: 'interviewUserDate',
+  INTERVIEW_EXECUTIVE: 'interviewExecutiveDate',
+  MEDICAL_CHECK_UP: 'medicalCheckUpDate',
+  OFFERING: 'offeringDate',
+  CLOSED: 'closedDate',
+};
+
+export const getDateFieldName = (status: string): string | null => {
+  return statusToDateField[status] || null;
+};
+
+export function formatStageLabel(status: string): string {
+  const map: Record<string, string> = {
+    BACKLOG: 'Backlog',
+    APPLYING: 'Applying',
+    APPLIED: 'Applied',
+    ADMIN_SCREENING: 'Admin Screening',
+    ASSESSMENT: 'Assessment',
+    FGD_LGD: 'FGD / LGD',
+    INTERVIEW_HR: 'HR Interview',
+    INTERVIEW_USER: 'User Interview',
+    INTERVIEW_EXECUTIVE: 'Executive Interview',
+    MEDICAL_CHECK_UP: 'Medical Check Up',
+    OFFERING: 'Offering',
+    CLOSED: 'Closed',
+  };
+  return map[status] || status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }

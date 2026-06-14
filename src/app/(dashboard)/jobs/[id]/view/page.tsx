@@ -19,15 +19,24 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   if (!job) notFound();
 
   // Serialize all date fields to ISO strings for client component
-  const serializedJob = {
-    ...job,
-    deadline: job.deadline.toISOString(),
-    openingDate: job.openingDate?.toISOString() ?? null,
-    plannedApplyDate: job.plannedApplyDate?.toISOString() ?? null,
-    appliedDate: job.appliedDate?.toISOString() ?? null,
-    createdAt: job.createdAt.toISOString(),
-    updatedAt: job.updatedAt.toISOString(),
-  };
+const serializedJob = {
+  ...job,
+  deadline: job.deadline.toISOString(),
+  openingDate: job.openingDate?.toISOString() ?? null,
+  plannedApplyDate: job.plannedApplyDate?.toISOString() ?? null,
+  appliedDate: job.appliedDate?.toISOString() ?? null,
+  adminScreeningDate: job.adminScreeningDate?.toISOString() ?? null,
+  assessmentDate: job.assessmentDate?.toISOString() ?? null,
+  fgdLgdDate: job.fgdLgdDate?.toISOString() ?? null,
+  interviewHrDate: job.interviewHrDate?.toISOString() ?? null,
+  interviewUserDate: job.interviewUserDate?.toISOString() ?? null,
+  interviewExecutiveDate: job.interviewExecutiveDate?.toISOString() ?? null,
+  medicalCheckUpDate: job.medicalCheckUpDate?.toISOString() ?? null,
+  offeringDate: job.offeringDate?.toISOString() ?? null,
+  closedDate: job.closedDate?.toISOString() ?? null,
+  createdAt: job.createdAt.toISOString(),
+  updatedAt: job.updatedAt.toISOString(),
+};
 
   return <JobView job={serializedJob} />;
 }

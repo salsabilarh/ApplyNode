@@ -54,7 +54,16 @@ model Job {
   
   plannedApplyDate DateTime?
   plannedApplyTime String?
-  appliedDate      DateTime?
+  appliedDate             DateTime?
+  adminScreeningDate      DateTime?
+  assessmentDate          DateTime?
+  fgdLgdDate              DateTime?
+  interviewHrDate         DateTime?
+  interviewUserDate       DateTime?
+  interviewExecutiveDate  DateTime?
+  medicalCheckUpDate      DateTime?
+  offeringDate            DateTime?
+  closedDate              DateTime?
   applyNotes       String?    @db.Text
   notes            String?    @db.Text
   createdAt        DateTime   @default(now())

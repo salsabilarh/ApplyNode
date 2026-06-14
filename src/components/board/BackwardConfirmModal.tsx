@@ -1,6 +1,7 @@
 'use client';
 
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, ArrowLeft, Calendar, CheckCircle2 } from 'lucide-react';
+import { formatStageLabel } from '@/lib/utils';
 
 interface BackwardConfirmModalProps {
   isOpen: boolean;
@@ -28,59 +29,74 @@ export default function BackwardConfirmModal({
   const targetLabel = targetStatus === 'BACKLOG' ? 'To Apply' : 'Applying';
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md rounded-2xl border border-neutral-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-5 border-b border-neutral-100">
-          <div className="flex items-center gap-2 text-amber-600">
-            <AlertCircle size={20} strokeWidth={1.8} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-neutral-100 bg-gradient-to-r from-amber-50 to-white">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+              <AlertCircle size={18} strokeWidth={1.8} />
+            </div>
             <h3 className="font-bold text-base text-neutral-900">Confirm Status Change</h3>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
+            aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          <div className="space-y-1">
+        {/* Job Info Card */}
+        <div className="p-5 pb-0">
+          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100">
             <p className="text-sm font-semibold text-neutral-800">{jobPosition}</p>
-            <p className="text-sm text-neutral-600">{jobCompany}</p>
+            <p className="text-xs text-neutral-500 mt-0.5">{jobCompany}</p>
+            <div className="mt-2 pt-2 border-t border-neutral-200 flex items-center gap-2">
+              <ArrowLeft size={12} className="text-amber-500" />
+              <p className="text-xs text-neutral-600">
+                Moving from <span className="font-medium">{formatStageLabel(currentStatus)}</span> to{' '}
+                <span className="font-medium">{targetLabel}</span>
+              </p>
+            </div>
           </div>
+        </div>
 
-          <div className="bg-neutral-50 p-3 rounded-xl space-y-1 text-sm">
-            <p><span className="font-medium">Current status:</span> {currentStatus.replace(/_/g, ' ')}</p>
-            {appliedDate && (
-              <p><span className="font-medium">Applied date:</span> {appliedDate}</p>
-            )}
-          </div>
+        {/* Details */}
+        <div className="p-5 space-y-3">
+          {appliedDate && (
+            <div className="flex items-center gap-2 text-sm text-neutral-600 bg-blue-50 p-2 rounded-lg">
+              <Calendar size={14} className="text-blue-500" />
+              <span>Applied date: <span className="font-medium">{appliedDate}</span></span>
+            </div>
+          )}
 
-          <div className="text-sm text-neutral-700 space-y-1">
-            <p className="font-semibold">This action will:</p>
-            <ul className="list-disc pl-5 space-y-0.5">
+          <div className="text-sm space-y-2">
+            <p className="font-semibold text-neutral-800">This action will:</p>
+            <ul className="list-disc pl-5 space-y-0.5 text-neutral-600">
               <li>Remove the applied date.</li>
               <li>Reset or clear the planned apply date.</li>
               <li>Move the status back to "{targetLabel}".</li>
             </ul>
           </div>
 
-          <p className="text-sm text-neutral-600">
-            Are you sure you want to move to <strong>{targetLabel}</strong>?
-          </p>
+          <p className="text-sm text-neutral-600">Are you sure you want to move to <strong>{targetLabel}</strong>?</p>
         </div>
 
-        <div className="flex gap-3 justify-end p-5 pt-0">
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-all"
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95"
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
           >
+            <CheckCircle2 size={16} />
             Yes, Move
           </button>
         </div>

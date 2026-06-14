@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { JobType, Priority, JobStatus } from '@prisma/client';
 import { 
@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import { useModal } from '@/context/ModalContext';
 import AlertModal from '@/components/ui/AlertModal';
-import DeadlineModal from '@/components/board/DeadlineModal';
-import BackwardConfirmModal from '@/components/board/BackwardConfirmModal';
-import PlannedDateModal from '@/components/board/PlannedDateModal';
-import ApplyDateModal from '@/components/ui/ApplyDateModal';
+import StageDatesInputModal from '@/components/board/StageDatesInputModal';
+import StageTransitionConfirmModal from '@/components/board/StageTransitionConfirmModal';
+import { STATUS_ORDER, formatStageLabel } from '@/lib/utils';
+import DeadlineModal from '../board/DeadlineModal';
 
 // ---------- Types ----------
 interface NoteItem {
@@ -41,6 +41,15 @@ interface JobFormData {
   applyNotes: string;
   notes: string;
   appliedDate: string;
+  adminScreeningDate: string;
+  assessmentDate: string;
+  fgdLgdDate: string;
+  interviewHrDate: string;
+  interviewUserDate: string;
+  interviewExecutiveDate: string;
+  medicalCheckUpDate: string;
+  offeringDate: string;
+  closedDate: string;
 }
 
 const emptyJob: JobFormData = {
@@ -61,6 +70,15 @@ const emptyJob: JobFormData = {
   applyNotes: '[]',
   notes: '',
   appliedDate: '',
+  adminScreeningDate: '',
+  assessmentDate: '',
+  fgdLgdDate: '',
+  interviewHrDate: '',
+  interviewUserDate: '',
+  interviewExecutiveDate: '',
+  medicalCheckUpDate: '',
+  offeringDate: '',
+  closedDate: '',
 };
 
 const formatDateField = (value: any): string => {
@@ -101,6 +119,15 @@ const formatInitialData = (data: any): JobFormData => {
     applyNotes: data.applyNotes || '[]',
     notes: data.notes || '',
     appliedDate: formatDateField(data.appliedDate),
+    adminScreeningDate: formatDateField(data.adminScreeningDate),
+    assessmentDate: formatDateField(data.assessmentDate),
+    fgdLgdDate: formatDateField(data.fgdLgdDate),
+    interviewHrDate: formatDateField(data.interviewHrDate),
+    interviewUserDate: formatDateField(data.interviewUserDate),
+    interviewExecutiveDate: formatDateField(data.interviewExecutiveDate),
+    medicalCheckUpDate: formatDateField(data.medicalCheckUpDate),
+    offeringDate: formatDateField(data.offeringDate),
+    closedDate: formatDateField(data.closedDate),
   };
 };
 
@@ -211,16 +238,96 @@ const DateInput = ({ name, value, onChange, required, error, disabled }: any) =>
   </div>
 );
 
-// Konstanta status
-const ADVANCED_STATUSES = [
-  'APPLIED','ADMIN_SCREENING','ASSESSMENT','FGD_LGD','INTERVIEW_HR',
-  'INTERVIEW_USER','INTERVIEW_EXECUTIVE','MEDICAL_CHECK_UP','OFFERING'
-];
-const STATUS_ORDER = [
-  'BACKLOG','APPLYING','APPLIED','ADMIN_SCREENING','ASSESSMENT','FGD_LGD',
-  'INTERVIEW_HR','INTERVIEW_USER','INTERVIEW_EXECUTIVE','MEDICAL_CHECK_UP','OFFERING','CLOSED'
-];
-const isStatusEarlier = (a: string, b: string) => STATUS_ORDER.indexOf(a) < STATUS_ORDER.indexOf(b);
+// Helper untuk mendapatkan nama field tanggal
+const getDateFieldName = (status: string): string | null => {
+  const map: Record<string, string> = {
+    APPLIED: 'appliedDate',
+    ADMIN_SCREENING: 'adminScreeningDate',
+    ASSESSMENT: 'assessmentDate',
+    FGD_LGD: 'fgdLgdDate',
+    INTERVIEW_HR: 'interviewHrDate',
+    INTERVIEW_USER: 'interviewUserDate',
+    INTERVIEW_EXECUTIVE: 'interviewExecutiveDate',
+    MEDICAL_CHECK_UP: 'medicalCheckUpDate',
+    OFFERING: 'offeringDate',
+    CLOSED: 'closedDate',
+  };
+  return map[status] || null;
+};
+
+// Fungsi helper untuk stage affected (sama dengan BoardClient)
+// Fungsi helper untuk stage affected (sama dengan BoardClient - versi optimasi)
+const getStagesAffected = (current: string, target: string) => {
+  const currentIdx = STATUS_ORDER.indexOf(current);
+  const targetIdx = STATUS_ORDER.indexOf(target);
+  const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
+  const stagesToUpdate: string[] = [];
+  const stagesToReset: string[] = [];
+
+  if (targetIdx > currentIdx) {
+    // ================= MAJU =================
+    if (targetIdx >= appliedIdx) {
+      // Tampilkan semua stage dari APPLIED hingga target
+      for (let i = appliedIdx; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+          stagesToUpdate.push(stage);
+        }
+      }
+    } else {
+      // Target sebelum APPLIED (hanya BACKLOG/APPLYING) - tidak ada date field
+      for (let i = currentIdx + 1; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+          stagesToUpdate.push(stage);
+        }
+      }
+    }
+  } else {
+    // ================= MUNDUR =================
+    // Reset semua stage setelah target hingga current
+    for (let i = targetIdx + 1; i <= currentIdx; i++) {
+      const stage = STATUS_ORDER[i];
+      if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+        stagesToReset.push(stage);
+      }
+    }
+    // Tampilkan stage dari APPLIED hingga target (jika target >= APPLIED)
+    if (targetIdx >= appliedIdx) {
+      for (let i = appliedIdx; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+          stagesToUpdate.push(stage);
+        }
+      }
+    } else {
+      // Target di bawah APPLIED: hanya target stage jika punya date field
+      if (target !== 'BACKLOG' && target !== 'APPLYING' && getDateFieldName(target)) {
+        stagesToUpdate.push(target);
+      }
+    }
+  }
+  return { stagesToUpdate, stagesToReset };
+};
+
+const getReopenStages = (targetStatus: string) => {
+  const targetIdx = STATUS_ORDER.indexOf(targetStatus);
+  const stagesToUpdate: string[] = [];
+  if (targetStatus !== 'APPLIED' && getDateFieldName('APPLIED')) {
+    stagesToUpdate.push('APPLIED');
+  }
+  if (getDateFieldName(targetStatus)) {
+    stagesToUpdate.push(targetStatus);
+  }
+  const stagesToReset: string[] = [];
+  for (let i = targetIdx + 1; i < STATUS_ORDER.length; i++) {
+    const stage = STATUS_ORDER[i];
+    if (stage !== 'BACKLOG' && stage !== 'APPLYING' && getDateFieldName(stage)) {
+      stagesToReset.push(stage);
+    }
+  }
+  return { stagesToUpdate, stagesToReset };
+};
 
 // ========== MAIN COMPONENT ==========
 export default function JobForm({ initialData }: { initialData?: any }) {
@@ -231,20 +338,53 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const [errors, setErrors] = useState<{ deadline?: string; plannedApplyDate?: string; openingDate?: string }>({});
   const [activeTab, setActiveTab] = useState(0);
   const tabs = ['Basic Info', 'Time & Priority', 'Execution Plan'];
-  const originalStatus = initialData?.status; 
+  const originalStatus = initialData?.status as JobStatus | undefined;
+
+  // State untuk stage transition (sama seperti BoardClient)
+  const [stageConfirm, setStageConfirm] = useState<{
+    isOpen: boolean;
+    currentStatus: string;
+    targetStatus: string;
+    stagesToUpdate: string[];
+    stagesToReset: string[];
+    isForward: boolean;
+    isReopen: boolean;
+    currentDeadline?: string;
+  }>({
+    isOpen: false,
+    currentStatus: '',
+    targetStatus: '',
+    stagesToUpdate: [],
+    stagesToReset: [],
+    isForward: false,
+    isReopen: false,
+  });
+
+  const [stageDatesModal, setStageDatesModal] = useState<{
+    isOpen: boolean;
+    targetStatus: string;
+    stagesToUpdate: string[];
+    allStagesToUpdate: string[];
+    existingDates: Record<string, string | null>;
+    isReopen: boolean;
+    currentDeadline?: string;
+  }>({
+    isOpen: false,
+    targetStatus: '',
+    stagesToUpdate: [],
+    allStagesToUpdate: [],
+    existingDates: {},
+    isReopen: false,
+  });
+
+  const [tempResetList, setTempResetList] = useState<string[]>([]);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
 
-  // State untuk modal konfirmasi
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
-  const [showBackwardConfirm, setShowBackwardConfirm] = useState(false);
-  const [showPlannedDateModal, setShowPlannedDateModal] = useState(false);
-  const [showApplyDateModal, setShowApplyDateModal] = useState(false);
-  const [showAlertModal, setShowAlertModal] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
-
+  // Checklist
   const [checklist, setChecklist] = useState<NoteItem[]>(() => {
     try { return JSON.parse(form.applyNotes); } catch { return []; }
   });
@@ -310,13 +450,13 @@ export default function JobForm({ initialData }: { initialData?: any }) {
     }, 300);
   };
 
-  const submitForm = async (data: JobFormData) => {
+  const finalSubmit = useCallback(async (finalForm: JobFormData) => {
     setLoading(true);
     try {
-      const res = await fetch(data.id ? `/api/jobs/${data.id}` : '/api/jobs', {
-        method: data.id ? 'PATCH' : 'POST',
+      const res = await fetch(finalForm.id ? `/api/jobs/${finalForm.id}` : '/api/jobs', {
+        method: finalForm.id ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(finalForm),
       });
       if (res.ok) {
         router.push('/');
@@ -330,98 +470,128 @@ export default function JobForm({ initialData }: { initialData?: any }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handler konfirmasi stage (dari StageTransitionConfirmModal)
+  const handleStageConfirm = useCallback((selectedStages: string[]) => {
+    const { currentStatus, targetStatus, stagesToUpdate, stagesToReset, isReopen, currentDeadline } = stageConfirm;
+    
+    const existingDates: Record<string, string | null> = {};
+    selectedStages.forEach(stage => {
+      const field = getDateFieldName(stage);
+      if (field) {
+        existingDates[stage] = (form as any)[field] || null;
+      }
+    });
 
-    if (!form.deadline) {
-      setErrors(prev => ({ ...prev, deadline: 'Deadline is required.' }));
-      setActiveTab(1);
-      return;
+    setStageConfirm(prev => ({ ...prev, isOpen: false }));
+    setTempResetList(stagesToReset);
+    setStageDatesModal({
+      isOpen: true,
+      targetStatus,
+      stagesToUpdate: selectedStages,
+      allStagesToUpdate: stagesToUpdate,
+      existingDates,
+      isReopen: isReopen || false,
+      currentDeadline,
+    });
+  }, [stageConfirm, form]);
+
+  // Handler input tanggal dari StageDatesInputModal
+const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>, deadline?: string) => {
+  const { targetStatus, stagesToUpdate, allStagesToUpdate, isReopen } = stageDatesModal;
+  const stagesToResetOriginal = tempResetList;
+  
+  const unselectedStages = allStagesToUpdate.filter(s => !stagesToUpdate.includes(s));
+  const allResetStages = [...stagesToResetOriginal, ...unselectedStages];
+
+  // Konversi targetStatus (string) ke JobStatus
+  const updatedForm = { ...form, status: targetStatus as JobStatus };  // ← tambahkan "as JobStatus"
+  for (const [stage, date] of Object.entries(dates)) {
+    const field = getDateFieldName(stage);
+    if (field && date) (updatedForm as any)[field] = date;
+  }
+  for (const stage of allResetStages) {
+    const field = getDateFieldName(stage);
+    if (field) (updatedForm as any)[field] = '';
+  }
+  if (isReopen && deadline) {
+    updatedForm.deadline = deadline.split('T')[0];
+  }
+
+  setStageDatesModal({ isOpen: false, targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false });
+  setTempResetList([]);
+  await finalSubmit(updatedForm);
+}, [stageDatesModal, tempResetList, form, finalSubmit]);
+
+  // Handler untuk kasus CLOSED (pakai DeadlineModal)
+  const handleDeadlineConfirm = useCallback(async (deadlineDate: string) => {
+    const updatedForm = { ...form, status: JobStatus.CLOSED, deadline: deadlineDate.split('T')[0] };
+    await finalSubmit(updatedForm);
+  }, [form, finalSubmit]);
+
+  // Submit utama (saat klik save)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!form.deadline) {
+    setErrors(prev => ({ ...prev, deadline: 'Deadline is required.' }));
+    setActiveTab(1);
+    return;
+  }
+  if (!validateDates(form.deadline, form.plannedApplyDate, form.openingDate)) return;
+
+  const original = originalStatus;
+  const newStatus = form.status;
+
+  if (!original || original === newStatus) {
+    await finalSubmit(form);
+    return;
+  }
+
+  // Kasus pindah ke CLOSED - gunakan konversi ke string
+  if (String(newStatus) === 'CLOSED') {
+    setShowDeadlineModal(true);
+    return;
+  }
+
+  // Kasus dari CLOSED (reopen) - hanya jika original CLOSED dan newStatus bukan CLOSED
+  if (String(original) === 'CLOSED' && String(newStatus) !== 'CLOSED') {
+    const targetIdx = STATUS_ORDER.indexOf(newStatus);
+    const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
+    if (targetIdx >= appliedIdx) {
+      const { stagesToUpdate, stagesToReset } = getReopenStages(newStatus);
+      setStageConfirm({
+        isOpen: true,
+        currentStatus: original,
+        targetStatus: newStatus,
+        stagesToUpdate,
+        stagesToReset,
+        isForward: false,
+        isReopen: true,
+        currentDeadline: form.deadline,
+      });
+    } else {
+      // Reopen ke BACKLOG/APPLYING langsung
+      const updatedForm = { ...form, status: newStatus };
+      await finalSubmit(updatedForm);
     }
-    if (!validateDates(form.deadline, form.plannedApplyDate, form.openingDate)) return;
+    return;
+  }
 
-    const original = initialData?.status as JobStatus | undefined;
-    const newStatus = form.status;
-
-    if (!original || original === newStatus) {
-      await submitForm(form);
-      return;
-    }
-
-    setPendingStatus(newStatus);
-
-    // 1. Change to CLOSED
-    if (newStatus === 'CLOSED') {
-      setShowDeadlineModal(true);
-      return;
-    }
-
-    // 2. Change from ADVANCED_STATUSES to BACKLOG/APPLYING
-    if (ADVANCED_STATUSES.includes(original) && (newStatus === 'BACKLOG' || newStatus === 'APPLYING')) {
-      setShowBackwardConfirm(true);
-      return;
-    }
-
-    // 3. Change from BACKLOG/APPLYING to ADVANCED_STATUSES
-    if ((original === 'BACKLOG' || original === 'APPLYING') && ADVANCED_STATUSES.includes(newStatus)) {
-      setShowApplyDateModal(true);
-      return;
-    }
-
-    // 4. Move backward between advanced statuses
-    if (ADVANCED_STATUSES.includes(original) && ADVANCED_STATUSES.includes(newStatus) && isStatusEarlier(newStatus, original)) {
-      setAlertMessage(`You are about to move from ${original.replace(/_/g, ' ')} to ${newStatus.replace(/_/g, ' ')}. This is a backward step. Are you sure?`);
-      setShowAlertModal(true);
-      return;
-    }
-
-    // 5. Otherwise submit directly
-    await submitForm(form);
-  };
-
-  // ========== MODAL HANDLERS ==========
-  const handleDeadlineConfirm = (deadlineDate: string) => {
-    setShowDeadlineModal(false);
-    const updatedForm = { 
-      ...form, 
-      status: JobStatus.CLOSED, 
-      deadline: deadlineDate.split('T')[0] 
-    };
-    submitForm(updatedForm);
-  };
-
-  const handleBackwardConfirm = () => {
-    setShowBackwardConfirm(false);
-    setShowPlannedDateModal(true);
-  };
-
-  const handlePlannedDateConfirm = (plannedDate: string | null) => {
-    setShowPlannedDateModal(false);
-    const updatedForm = {
-      ...form,
-      status: pendingStatus!,
-      plannedApplyDate: plannedDate || '',
-    };
-    submitForm(updatedForm);
-  };
-
-  const handleApplyDateConfirm = (appliedDate: string) => {
-    setShowApplyDateModal(false);
-    const updatedForm = {
-      ...form,
-      status: pendingStatus!,
-      plannedApplyDate: appliedDate,
-    };
-    submitForm(updatedForm);
-  };
-
-  const handleAlertConfirm = () => {
-    setShowAlertModal(false);
-    const updatedForm = { ...form, status: pendingStatus! };
-    submitForm(updatedForm);
-  };
+  // Transisi biasa
+  const { stagesToUpdate, stagesToReset } = getStagesAffected(original, newStatus);
+  const isForward = STATUS_ORDER.indexOf(newStatus) > STATUS_ORDER.indexOf(original);
+  setStageConfirm({
+    isOpen: true,
+    currentStatus: original,
+    targetStatus: newStatus,
+    stagesToUpdate,
+    stagesToReset,
+    isForward,
+    isReopen: false,
+  });
+};
 
   const handleDelete = () => {
     if (!form.id) return;
@@ -563,6 +733,8 @@ export default function JobForm({ initialData }: { initialData?: any }) {
                   </div>
                 </InputWrapper>
               </FormRow>
+              <FormRow><Label label="Recruitment Status" /><InputWrapper><Select name="status" value={form.status} onChange={handleInputChange} options={Object.values(JobStatus)} /></InputWrapper></FormRow>
+              <FormRow><Label label="Duration (months)" /><InputWrapper><TextInput name="duration" value={form.duration} onChange={handleInputChange} type="number" placeholder="e.g., 6" /></InputWrapper></FormRow>
               <FormRow><Label label="Requirements" /><InputWrapper><TextArea name="requirement" value={form.requirement} onChange={handleInputChange} rows={6} placeholder="List key qualifications and skills..." /></InputWrapper></FormRow>
               <FormRow><Label label="Job Description" /><InputWrapper><TextArea name="description" value={form.description} onChange={handleInputChange} rows={8} placeholder="Paste the full job description here..." /></InputWrapper></FormRow>
             </div>
@@ -586,8 +758,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
                 </InputWrapper>
               </FormRow>
               <FormRow><Label label="Priority" /><InputWrapper><Select name="priority" value={form.priority} onChange={handleInputChange} options={Object.values(Priority)} /></InputWrapper></FormRow>
-              <FormRow><Label label="Status" /><InputWrapper><Select name="status" value={form.status} onChange={handleInputChange} options={Object.values(JobStatus)} /></InputWrapper></FormRow>
-              <FormRow><Label label="Duration (months)" /><InputWrapper><TextInput name="duration" value={form.duration} onChange={handleInputChange} type="number" placeholder="e.g., 6" /></InputWrapper></FormRow>
             </div>
           )}
 
@@ -709,7 +879,7 @@ export default function JobForm({ initialData }: { initialData?: any }) {
 
       {/* Import Modal */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-neutral-950/40">
           <div className="bg-white w-full max-w-2xl rounded-2xl border border-neutral-200 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b">
               <div className="flex items-center gap-2">
@@ -733,7 +903,7 @@ export default function JobForm({ initialData }: { initialData?: any }) {
                 <button
                   type="button"
                   onClick={() => setIsImportModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-200 rounded-xl transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
@@ -741,7 +911,7 @@ export default function JobForm({ initialData }: { initialData?: any }) {
                   type="button"
                   onClick={handleImport}
                   disabled={importing || !importText.trim()}
-                  className="px-4 py-2 bg-primary-600 text-white hover:bg-primary-100 rounded-xl transition-colors font-semibold text-sm rounded-xl flex items-center justify-center gap-2"
+                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
                 >
                   {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                   <span>{importing ? 'Importing...' : 'Import & Fill'}</span>
@@ -752,7 +922,7 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         </div>
       )}
 
-      {/* Modal CLOSED */}
+      {/* Modal CLOSED (DeadlineModal) */}
       <DeadlineModal
         isOpen={showDeadlineModal}
         onClose={() => setShowDeadlineModal(false)}
@@ -761,47 +931,38 @@ export default function JobForm({ initialData }: { initialData?: any }) {
         companyName={form.company}
       />
 
-      {/* Modal konfirmasi backward ke BACKLOG/APPLYING */}
-      <BackwardConfirmModal
-        isOpen={showBackwardConfirm}
-        onClose={() => setShowBackwardConfirm(false)}
-        onConfirm={handleBackwardConfirm}
+      {/* Stage Transition Confirm Modal */}
+      <StageTransitionConfirmModal
+        isOpen={stageConfirm.isOpen}
+        onClose={() => setStageConfirm(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleStageConfirm}
         jobPosition={form.position}
         jobCompany={form.company}
-        currentStatus={originalStatus || ''}
-        appliedDate={form.plannedApplyDate}
-        targetStatus={pendingStatus as 'BACKLOG' | 'APPLYING'}
+        currentStatus={stageConfirm.currentStatus}
+        targetStatus={stageConfirm.targetStatus}
+        stagesToUpdate={stageConfirm.stagesToUpdate}
+        stagesToReset={stageConfirm.stagesToReset}
+        isForward={stageConfirm.isForward}
+        customTitle={stageConfirm.isReopen ? "Reopen Job Application" : undefined}
       />
 
-      {/* Modal input planned date */}
-      <PlannedDateModal
-        isOpen={showPlannedDateModal}
-        onClose={() => setShowPlannedDateModal(false)}
-        onConfirm={handlePlannedDateConfirm}
-        positionName={form.position}
-        companyName={form.company}
-        targetStatus={pendingStatus || ''}
-      />
-
-      {/* Modal apply date */}
-      <ApplyDateModal
-        isOpen={showApplyDateModal}
-        onClose={() => setShowApplyDateModal(false)}
-        onConfirm={handleApplyDateConfirm}
-        positionName={form.position}
-        companyName={form.company}
-        targetStatus={pendingStatus || ''}
-      />
-
-      {/* Alert modal konfirmasi mundur antar advanced */}
-      <AlertModal
-        isOpen={showAlertModal}
-        onClose={() => setShowAlertModal(false)}
-        onConfirm={handleAlertConfirm}
-        title="Confirm Backward Move"
-        message={alertMessage}
-        confirmText="Yes, Move"
-        cancelText="Cancel"
+      {/* Stage Dates Input Modal */}
+      <StageDatesInputModal
+        isOpen={stageDatesModal.isOpen}
+        onClose={() => setStageDatesModal({ isOpen: false, targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false })}
+        onBack={() => {
+          // Tutup stageDatesModal dan buka stageConfirm lagi
+          setStageDatesModal(prev => ({ ...prev, isOpen: false }));
+          setStageConfirm(prev => ({ ...prev, isOpen: true }));
+        }}
+        onConfirm={handleStageDatesConfirm}
+        jobPosition={form.position}
+        jobCompany={form.company}
+        targetStatus={stageDatesModal.targetStatus}
+        stagesToUpdate={stageDatesModal.stagesToUpdate}
+        existingDates={stageDatesModal.existingDates}
+        isReopen={stageDatesModal.isReopen}
+        currentDeadline={stageDatesModal.currentDeadline}
       />
     </div>
   );

@@ -1,44 +1,42 @@
 'use client';
 
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, CheckCircle2 } from 'lucide-react';
 
 interface AlertModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   message: string;
-  onConfirm?: () => void;      // opsional, jika ada akan muncul tombol konfirmasi
-  confirmText?: string;        // teks tombol konfirmasi, default "OK"
-  cancelText?: string;         // teks tombol batal, default "Cancel"
+  onConfirm?: () => void;
+  confirmText?: string;
+  cancelText?: string;
 }
 
-export default function AlertModal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  message, 
-  onConfirm, 
-  confirmText = 'OK', 
-  cancelText = 'Cancel' 
+export default function AlertModal({
+  isOpen,
+  onClose,
+  title,
+  message,
+  onConfirm,
+  confirmText = 'OK',
+  cancelText = 'Cancel',
 }: AlertModalProps) {
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    if (onConfirm) onConfirm();
-    onClose();
-  };
-
-  const handleCancel = () => {
+    onConfirm?.();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-sm rounded-2xl border border-neutral-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Header dengan ikon peringatan */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-100">
-          <div className="flex items-center gap-2 text-amber-600">
-            <AlertCircle size={20} strokeWidth={1.8} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-neutral-100 bg-gradient-to-r from-amber-50 to-white">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+              <AlertCircle size={18} />
+            </div>
             <h3 className="font-bold text-base text-neutral-900">{title}</h3>
           </div>
           <button
@@ -50,33 +48,35 @@ export default function AlertModal({
           </button>
         </div>
 
-        {/* Pesan */}
+        {/* Content */}
         <div className="p-5">
-          <p className="text-sm text-neutral-600 leading-relaxed whitespace-pre-line">{message}</p>
+          <p className="text-sm text-neutral-600 whitespace-pre-line">{message}</p>
         </div>
 
-        {/* Tombol - dinamis berdasarkan ada/tidaknya onConfirm */}
-        <div className={`flex p-5 pt-0 gap-2 ${onConfirm ? 'justify-between' : 'justify-end'}`}>
+        {/* Footer */}
+        <div className={`flex p-5 pt-0 gap-2 bg-neutral-50/50 ${onConfirm ? 'justify-between' : 'justify-end'}`}>
           {onConfirm ? (
             <>
               <button
-                onClick={handleCancel}
-                className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-all"
+                onClick={onClose}
+                className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
               >
                 {cancelText}
               </button>
               <button
                 onClick={handleConfirm}
-                className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95"
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
               >
+                <CheckCircle2 size={16} />
                 {confirmText}
               </button>
             </>
           ) : (
             <button
               onClick={onClose}
-              className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95"
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
             >
+              <CheckCircle2 size={16} />
               OK
             </button>
           )}

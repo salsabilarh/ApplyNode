@@ -58,7 +58,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
   }, [initialJobs, search, filterPlatform, filterCompany, filterPriority, filterStatus]);
 
   const getDaysSinceOpened = (openingDateStr?: string | null) => {
-    if (!openingDateStr) return <span className="text-neutral-400 text-xs">—</span>;
+    if (!openingDateStr) return <span className="text-neutral-400 text-xs">-</span>;
     const openDate = new Date(openingDateStr);
     const today = new Date();
     openDate.setHours(0, 0, 0, 0);
@@ -71,7 +71,7 @@ export default function MasterListClient({ initialJobs }: MasterListClientProps)
 
   const getDeadlineBadge = (deadlineStr: string) => {
     const rawDate = deadlineStr.split('T')[0];
-    if (!rawDate) return <span className="text-neutral-400">—</span>;
+    if (!rawDate) return <span className="text-neutral-400">-</span>;
     const parts = rawDate.split('-');
     const deadlineDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     const today = new Date();

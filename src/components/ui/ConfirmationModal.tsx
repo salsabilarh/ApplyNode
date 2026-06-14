@@ -1,8 +1,8 @@
 'use client';
 
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, Trash2 } from 'lucide-react';
 
-interface ModalProps {
+interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -10,7 +10,13 @@ interface ModalProps {
   message: string;
 }
 
-export default function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: ModalProps) {
+export default function ConfirmationModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+}: ConfirmationModalProps) {
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -19,43 +25,45 @@ export default function ConfirmationModal({ isOpen, onClose, onConfirm, title, m
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-neutral-900/30 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-2xl border border-neutral-200 shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Close button */}
-        <div className="flex justify-end p-3 pb-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-neutral-100 bg-gradient-to-r from-danger-50 to-white">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-danger-100 rounded-lg text-danger-600">
+              <AlertTriangle size={18} />
+            </div>
+            <h3 className="font-bold text-base text-neutral-900">{title}</h3>
+          </div>
           <button
             onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
             aria-label="Close"
           >
-            <X size={16} strokeWidth={2} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Icon & Content */}
-        <div className="flex flex-col items-center text-center px-6 pb-6">
-          <div className="p-3 bg-danger-50 text-danger-600 rounded-2xl border border-danger-100 mb-4 shadow-sm">
-            <AlertTriangle size={24} strokeWidth={2} />
-          </div>
-          <h3 className="font-bold text-lg text-neutral-900 tracking-tight">{title}</h3>
-          <p className="text-sm text-neutral-500 mt-2 max-w-[260px] leading-relaxed">{message}</p>
+        {/* Content */}
+        <div className="p-5">
+          <p className="text-sm text-neutral-600 whitespace-pre-line">{message}</p>
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-3 p-6 pt-0">
-          <button
-            onClick={handleConfirm}
-            className="flex-1 py-2.5 bg-red-500 hover:bg-red-300 disabled:bg-red-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            Yes, Delete
-          </button>
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-all"
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
           >
             Cancel
           </button>
-
+          <button
+            onClick={handleConfirm}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+          >
+            <Trash2 size={16} />
+            Yes, Delete
+          </button>
         </div>
       </div>
     </div>

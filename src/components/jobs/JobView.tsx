@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Job } from '@/types/job';
 import { format } from 'date-fns';
+import { formatStageLabel, getDateFieldName, STATUS_ORDER } from '@/lib/utils';
 
 interface ChecklistItem {
   id: string;
@@ -72,51 +73,11 @@ export default function JobView({ job }: JobViewProps) {
     LOW: 'badge-success'
   };
 
-  const DetailRow = ({ icon: Icon, label, value, href }: { icon: React.ElementType; label: string; value: string | null; href?: string }) => {
-    if (!value) return null;
-    return (
-      <div className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0 group">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-6 h-6 rounded-md bg-neutral-100 text-neutral-500 flex items-center justify-center group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
-            <Icon size={14} strokeWidth={1.8} />
-          </div>
-          <span className="text-xs font-medium text-neutral-600 uppercase tracking-wide">{label}</span>
-        </div>
-        <div className="flex-1 text-right">
-          {href ? (
-            <a 
-              href={href} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-primary-600 hover:underline break-all inline-flex items-center gap-1"
-            >
-              {value.length > 40 ? value.substring(0, 40) + '…' : value}
-              <ExternalLink size={12} className="flex-shrink-0" />
-            </a>
-          ) : (
-            <span className="text-sm font-medium text-neutral-800">{value}</span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const DateRow = ({ dateStr, label, Icon }: { dateStr: string | null; label: string; Icon: React.ElementType }) => {
-    const formatted = formatDate(dateStr);
-    if (!formatted) return null;
-    return (
-      <div className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0 group">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-6 h-6 rounded-md bg-neutral-100 text-neutral-500 flex items-center justify-center group-hover:bg-amber-100 group-hover:text-amber-600 transition-colors">
-            <Icon size={14} strokeWidth={1.8} />
-          </div>
-          <span className="text-xs font-medium text-neutral-600 uppercase tracking-wide">{label}</span>
-        </div>
-        <div className="text-right">
-          <span className="text-sm font-medium text-neutral-800">{formatted}</span>
-        </div>
-      </div>
-    );
+  // Helper untuk mendapatkan nilai tanggal stage
+  const getStageDate = (status: string): string | null => {
+    const field = getDateFieldName(status);
+    if (!field) return null;
+    return (job as any)[field] || null;
   };
 
   const toggleChecklistItem = async (itemId: string) => {
@@ -126,7 +87,6 @@ export default function JobView({ job }: JobViewProps) {
       item.id === itemId ? { ...item, completed: !item.completed } : item
     );
     
-    // Optimistic update
     setChecklist(updatedList);
     setUpdatingChecklist(true);
     setError(null);
@@ -144,7 +104,6 @@ export default function JobView({ job }: JobViewProps) {
       router.refresh();
     } catch (err: any) {
       setError(err.message);
-      // Revert optimistic update
       setChecklist(checklist);
     } finally {
       setUpdatingChecklist(false);
@@ -199,10 +158,10 @@ export default function JobView({ job }: JobViewProps) {
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main content */}
+        {/* Main content - kiri */}
         <div className="lg:col-span-2 space-y-6">
           {/* Job Description */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
             <div className="px-6 py-3 border-b border-neutral-100 bg-neutral-50/40 flex items-center gap-2">
               <FileText size={18} className="text-primary-500" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Job Description</h2>
@@ -220,7 +179,7 @@ export default function JobView({ job }: JobViewProps) {
           </div>
 
           {/* Requirements */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
             <div className="px-6 py-3 border-b border-neutral-100 bg-neutral-50/40 flex items-center gap-2">
               <FileText size={18} className="text-success-500" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Requirements</h2>
@@ -237,8 +196,8 @@ export default function JobView({ job }: JobViewProps) {
             </div>
           </div>
 
-          {/* Preparation Checklist - Interactive */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+          {/* Preparation Checklist */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
             <div className="px-6 py-3 border-b border-neutral-100 bg-neutral-50/40 flex items-center gap-2">
               <CheckCircle2 size={18} className="text-emerald-500" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Preparation Checklist</h2>
@@ -285,7 +244,7 @@ export default function JobView({ job }: JobViewProps) {
 
           {/* Additional Notes */}
           {job.notes && (
-            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
               <div className="px-6 py-3 border-b border-neutral-100 bg-neutral-50/40 flex items-center gap-2">
                 <StickyNote size={18} className="text-amber-500" />
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Additional Notes</h2>
@@ -297,84 +256,123 @@ export default function JobView({ job }: JobViewProps) {
           )}
         </div>
 
-        {/* Sidebar: Details, Dates, Links */}
+        {/* Sidebar: Details, Dates, Links, Timeline - kanan */}
         <div className="space-y-6">
-          {/* Job Details */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+          {/* Job Details - tanpa icon di detail row */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100">
               <Briefcase size={16} className="text-primary-500" />
               Job Details
             </h3>
             <div className="space-y-1">
-              <DetailRow icon={Layers} label="Job Type" value={job.jobType.replace(/_/g, ' ')} />
-              <DetailRow icon={Timer} label="Duration" value={job.duration ? `${job.duration} months` : null} />
-              <DetailRow icon={Globe} label="Platform" value={job.platform} />
-              {!job.duration && !job.platform && (
-                <div className="flex items-center justify-center text-neutral-400 text-sm py-2">
-                  <AlertCircle size={14} className="mr-2" />
-                  <span>No additional details</span>
+              <div className="flex justify-between py-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Job Type</span>
+                <span className="text-sm font-medium text-neutral-800">{job.jobType.replace(/_/g, ' ')}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Duration (Months)</span>
+                <span className="text-sm font-medium text-neutral-800">{job.duration ? `${job.duration} months` : '-'}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Platform</span>
+                <span className="text-sm font-medium text-neutral-800">{job.platform}</span>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Important Dates */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50/40">
+              <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+                <Calendar size={16} className="text-amber-500" />
+                Important Dates
+              </h3>
+            </div>
+            <div className="p-5 space-y-1">
+              {/* Deadline */}
+              <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Deadline</span>
+                <span className="text-sm font-medium text-neutral-800">{formatDate(job.deadline) || '-'}</span>
+              </div>
+              {/* Opening Date */}
+              <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Opening Date</span>
+                <span className="text-sm font-medium text-neutral-800">{formatDate(job.openingDate) || '-'}</span>
+              </div>
+              {/* Planned Apply Date (hanya jika ada) */}
+              {job.plannedApplyDate && !job.appliedDate && (
+                <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Planned Apply Date</span>
+                  <span className="text-sm font-medium text-neutral-800">{formatDate(job.plannedApplyDate)}</span>
                 </div>
+              )}
+              {/* Applied Date */}
+              {job.appliedDate && (
+                <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Applied Date</span>
+                  <span className="text-sm font-medium text-neutral-800">{formatDate(job.appliedDate)}</span>
+                </div>
+              )}
+              {/* Stage dates lainnya (tidak termasuk APPLIED) */}
+              {STATUS_ORDER.filter(s => s !== 'BACKLOG' && s !== 'APPLYING' && s !== 'CLOSED' && s !== 'APPLIED').map(status => {
+                const dateValue = getStageDate(status);
+                if (!dateValue) return null;
+                return (
+                  <div key={status} className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                    <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">{formatStageLabel(status)}</span>
+                    <span className="text-sm font-medium text-neutral-800">{formatDate(dateValue)}</span>
+                  </div>
+                );
+              })}
+              {/* Closed Date (hanya jika ada) */}
+              {job.closedDate && (
+                <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Closed Date</span>
+                  <span className="text-sm font-medium text-neutral-800">{formatDate(job.closedDate)}</span>
+                </div>
+              )}
+              {/* Planned Apply Time (opsional) */}
+              {job.plannedApplyTime && (
+                <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Planned Time</span>
+                  <span className="text-sm font-medium text-neutral-800">{job.plannedApplyTime}</span>
+                </div>
+              )}
+              {/* Pesan jika tidak ada satupun tanggal */}
+              {!job.deadline && !job.openingDate && !job.plannedApplyDate && !job.appliedDate && (
+                <div className="text-center text-neutral-400 text-sm py-4">No dates provided</div>
               )}
             </div>
           </div>
 
-          {/* Sidebar: Dates */}
-      <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 hover:shadow-md transition-shadow">
-        <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100">
-          <Calendar size={16} className="text-amber-500" />
-          Important Dates
-        </h3>
-        <div className="space-y-1">
-          <DateRow dateStr={job.deadline} label="Deadline" Icon={CalendarDays} />
-          <DateRow dateStr={job.openingDate} label="Opening Date" Icon={CalendarRange} />
-
-          {/* Planned Apply Date - hanya untuk status yang belum applied */}
-          {['BACKLOG', 'APPLYING'].includes(job.status) && job.plannedApplyDate && (
-            <DateRow 
-              dateStr={job.plannedApplyDate} 
-              label="Planned Apply Date" 
-              Icon={Target} 
-            />
-          )}
-
-          {/* Applied Date - jika ada */}
-          {job.appliedDate && (
-            <DateRow 
-              dateStr={job.appliedDate} 
-              label="Applied Date" 
-              Icon={CheckCircle2} 
-            />
-          )}
-
-          {/* Planned Apply Time (opsional) */}
-          {job.plannedApplyTime && (
-            <DetailRow icon={Clock} label="Planned Time" value={job.plannedApplyTime} />
-          )}
-
-          {!job.deadline && !job.openingDate && !job.plannedApplyDate && !job.appliedDate && !job.plannedApplyTime && (
-            <div className="flex items-center justify-center text-neutral-400 text-sm py-2">
-              <AlertCircle size={14} className="mr-2" />
-              <span>No dates provided</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-
-          {/* Links */}
-          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+          {/* Links - tanpa icon di detail row */}
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100">
               <LinkIcon size={16} className="text-blue-500" />
               Links
             </h3>
-            <div className="space-y-1">
-              <DetailRow icon={ExternalLink} label="Apply Link" value={job.applyLink} href={job.applyLink || undefined} />
-              <DetailRow icon={BookOpen} label="Source Link" value={job.sourceLink} href={job.sourceLink || undefined} />
-              {!job.applyLink && !job.sourceLink && (
-                <div className="flex items-center justify-center text-neutral-400 text-sm py-2">
-                  <AlertCircle size={14} className="mr-2" />
-                  <span>No links provided</span>
+            <div className="space-y-2">
+              {job.applyLink && (
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Apply Link</span>
+                  <a href={job.applyLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 hover:underline flex items-center gap-1">
+                    {job.applyLink.length > 40 ? job.applyLink.substring(0, 40) + '…' : job.applyLink}
+                    <ExternalLink size={12} />
+                  </a>
                 </div>
+              )}
+              {job.sourceLink && (
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Source Link</span>
+                  <a href={job.sourceLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 hover:underline flex items-center gap-1">
+                    {job.sourceLink.length > 40 ? job.sourceLink.substring(0, 40) + '…' : job.sourceLink}
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
+              {!job.applyLink && !job.sourceLink && (
+                <div className="text-center text-neutral-400 text-sm py-2">No links provided</div>
               )}
             </div>
           </div>

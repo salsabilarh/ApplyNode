@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, X, Target } from 'lucide-react';
+import { Calendar, X, Target, CheckCircle2 } from 'lucide-react';
 
 interface PlannedDateModalProps {
   isOpen: boolean;
@@ -25,10 +25,7 @@ export default function PlannedDateModal({
 
   const getTodayString = () => {
     const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return today.toISOString().split('T')[0];
   };
 
   useEffect(() => {
@@ -50,33 +47,44 @@ export default function PlannedDateModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md rounded-2xl border border-neutral-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-5 border-b border-neutral-100">
-          <div className="flex items-center gap-2 text-primary-600">
-            <Target size={20} strokeWidth={1.8} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-neutral-100 bg-gradient-to-r from-primary-50 to-white">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-primary-100 rounded-lg text-primary-600">
+              <Target size={18} />
+            </div>
             <h3 className="font-bold text-base text-neutral-900">Set Planned Date</h3>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
+            aria-label="Close"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-5 bg-neutral-50 border-b border-neutral-100">
-          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wide">
-            Moving to: {targetStatus.replace(/_/g, ' ')}
-          </p>
-          <p className="text-sm font-bold text-neutral-800 mt-1">{positionName}</p>
-          <p className="text-sm text-neutral-600">{companyName}</p>
+        {/* Job Info Card */}
+        <div className="p-5 pb-0">
+          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-100">
+            <p className="text-sm font-semibold text-neutral-800">{positionName}</p>
+            <p className="text-xs text-neutral-500 mt-0.5">{companyName}</p>
+            <div className="mt-2 pt-2 border-t border-neutral-200 flex items-center gap-2">
+              <Target size={12} className="text-primary-500" />
+              <p className="text-xs text-neutral-600">
+                Moving to: <span className="font-medium">{targetStatus.replace(/_/g, ' ')}</span>
+              </p>
+            </div>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5">
-          <div>
+        {/* Form */}
+        <div className="p-5 space-y-4">
+          <form onSubmit={handleSubmit}>
             <label className="block text-xs font-bold text-neutral-600 mb-1.5 uppercase tracking-wide">
-              Planned Apply Date (optional)
+              Planned Apply Date
             </label>
             <div className="relative">
               <input
@@ -84,42 +92,35 @@ export default function PlannedDateModal({
                 value={selectedDate}
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
-                  if (error) setError('');
+                  setError('');
                 }}
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-800 font-medium outline-none focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
+                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition"
               />
-              <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
             </div>
             <p className="text-[11px] text-neutral-500 mt-1.5">
               You can select a date or leave it empty for no plan.
             </p>
-          </div>
+          </form>
+        </div>
 
-          <div className="flex gap-3 justify-between pt-2">
-            <button
-              type="button"
-              onClick={handleClear}
-              className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-all"
-            >
-              Clear
-            </button>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold text-sm rounded-xl transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95"
-              >
-                Save & Move
-              </button>
-            </div>
-          </div>
-        </form>
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+          >
+            <CheckCircle2 size={16} />
+            Save & Move
+          </button>
+        </div>
       </div>
     </div>
   );
