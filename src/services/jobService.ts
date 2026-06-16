@@ -59,13 +59,18 @@ export async function getJobsByUser(userId: string) {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
+  // Update expired jobs to CLOSED only if appliedDate is null
   await prisma.job.updateMany({
     where: {
       userId,
       status: { not: 'CLOSED' },
       deadline: { lt: startOfToday },
+      appliedDate: null,   // ✅ hanya jika belum apply
     },
-    data: { status: 'CLOSED' },
+    data: {
+      status: 'CLOSED',
+      plannedApplyDate: null,
+    },
   });
 
   return prisma.job.findMany({
@@ -75,33 +80,44 @@ export async function getJobsByUser(userId: string) {
 }
 
 export async function createJob(userId: string, data: any) {
-  const deadlineDate = data.deadline ? new Date(data.deadline) : new Date();
+  const deadlineDate = data.deadline ? new Date(data.deadline) : undefined;
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
+  let initialStatus = data.status || 'BACKLOG';
+  if (deadlineDate && deadlineDate < startOfToday) {
+    initialStatus = 'CLOSED';
+  }
 
-  const initialStatus = deadlineDate < startOfToday ? 'CLOSED' : (data.status || 'BACKLOG');
-  
+  const createData: any = {
+    userId,
+    position: data.position,
+    jobType: data.jobType,
+    company: data.company,
+    platform: data.platform,
+    sourceLink: data.sourceLink || null,
+    description: data.description || null,
+    requirement: data.requirement || null,
+    applyLink: data.applyLink || null,
+    duration: data.duration || null,
+    openingDate: data.openingDate ? new Date(data.openingDate) : null,
+    priority: data.priority,
+    status: initialStatus,
+    plannedApplyDate: data.plannedApplyDate ? new Date(data.plannedApplyDate) : null,
+    plannedApplyTime: data.plannedApplyTime || null,
+    applyNotes: data.applyNotes || null,
+    notes: data.notes || null,
+    // ✅ Tambahkan field baru
+    location: data.location ?? null,
+    workMethod: data.workMethod ?? null,
+    durationUnit: data.durationUnit ?? null,
+  };
+
+  if (deadlineDate !== undefined) {
+    createData.deadline = deadlineDate;
+  }
+
   return prisma.job.create({
-    data: {
-      userId,
-      position: data.position,
-      jobType: data.jobType,
-      company: data.company,
-      platform: data.platform,
-      sourceLink: data.sourceLink || null,
-      description: data.description || null,
-      requirement: data.requirement || null,
-      applyLink: data.applyLink || null,
-      duration: data.duration || null,
-      deadline: deadlineDate,
-      openingDate: data.openingDate ? new Date(data.openingDate) : null,
-      priority: data.priority,
-      status: initialStatus,
-      plannedApplyDate: data.plannedApplyDate ? new Date(data.plannedApplyDate) : null,
-      plannedApplyTime: data.plannedApplyTime || null,
-      applyNotes: data.applyNotes || null,
-      notes: data.notes || null,
-    },
+    data: createData,
   });
 }
 
@@ -126,23 +142,30 @@ export async function updateJob(jobId: string, userId: string, data: any) {
   if (data.notes !== undefined) updatePayload.notes = data.notes || null;
   if (data.plannedApplyTime !== undefined) updatePayload.plannedApplyTime = data.plannedApplyTime || null;
 
-  // Deadline handling
-  if (data.deadline !== undefined) {
-    const newDeadline = new Date(data.deadline);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    updatePayload.deadline = newDeadline;
+  if (data.location !== undefined) updatePayload.location = data.location;
+  if (data.workMethod !== undefined) updatePayload.workMethod = data.workMethod;
+  if (data.durationUnit !== undefined) updatePayload.durationUnit = data.durationUnit;
 
-    if (
-      (existing.status === 'BACKLOG' || existing.status === 'APPLYING') &&
-      newDeadline < startOfToday
-    ) {
-      updatePayload.status = JobStatus.CLOSED;
-    } else if (existing.status === 'CLOSED' && newDeadline >= startOfToday) {
-      updatePayload.status = JobStatus.BACKLOG;
-    }
+// Deadline handling
+if (data.deadline !== undefined) {
+  // Jika data.deadline null atau string kosong, set ke null
+  const newDeadline = data.deadline ? new Date(data.deadline) : null;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  updatePayload.deadline = newDeadline;
+
+  if (
+    newDeadline &&
+    (existing.status === 'BACKLOG' || existing.status === 'APPLYING') &&
+    newDeadline < startOfToday &&
+    existing.appliedDate === null
+  ) {
+    updatePayload.status = JobStatus.CLOSED;
+    updatePayload.plannedApplyDate = null;
+  } else if (existing.status === 'CLOSED' && newDeadline && newDeadline >= startOfToday) {
+    updatePayload.status = JobStatus.BACKLOG;
   }
-
+}
   if (data.openingDate !== undefined) {
     updatePayload.openingDate = data.openingDate ? new Date(data.openingDate) : null;
   }
@@ -167,6 +190,9 @@ export async function updateJob(jobId: string, userId: string, data: any) {
     const newStatus = data.status;
     updatePayload.status = data.status;
 
+    if (newStatus === 'CLOSED') {
+    updatePayload.plannedApplyDate = null;
+  }
     const oldIdx = STATUS_ORDER.indexOf(oldStatus);
     const newIdx = STATUS_ORDER.indexOf(newStatus);
 
@@ -185,6 +211,7 @@ export async function updateJob(jobId: string, userId: string, data: any) {
           updatePayload[field] = null;
         }
       }
+      
       // Keep the target stage date (do nothing)
     }
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RotateCcw, X, AlertCircle, Calendar, CheckCircle2 } from 'lucide-react';
+import { RotateCcw, X, AlertCircle, Calendar, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface ReopenJobModalProps {
   isOpen: boolean;
@@ -31,6 +31,7 @@ export default function ReopenJobModal({
   const [appliedDate, setAppliedDate] = useState('');
   const [error, setError] = useState('');
   const [appliedDateError, setAppliedDateError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const needsAppliedDate = ADVANCED_STATUSES.includes(targetStatus);
 
@@ -56,6 +57,7 @@ export default function ReopenJobModal({
       setAppliedDate(getTodayString());
       setError('');
       setAppliedDateError('');
+      setIsLoading(false);
     }
   }, [isOpen]);
 
@@ -75,7 +77,7 @@ export default function ReopenJobModal({
     return '';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const deadlineError = validateDeadline(selectedDate);
     if (deadlineError) {
@@ -89,7 +91,13 @@ export default function ReopenJobModal({
         return;
       }
     }
-    onConfirm(selectedDate, needsAppliedDate ? appliedDate : null);
+    setIsLoading(true);
+    try {
+      onConfirm(selectedDate, needsAppliedDate ? appliedDate : null);
+    } finally {
+      // Beri jeda agar loading terlihat, karena onConfirm mungkin async
+      setTimeout(() => setIsLoading(false), 300);
+    }
   };
 
   const targetLabel = targetStatus.replace(/_/g, ' ');
@@ -107,8 +115,8 @@ export default function ReopenJobModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
+            disabled={isLoading}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -151,14 +159,15 @@ export default function ReopenJobModal({
               </label>
               <div className="relative">
                 <input
-                  type="datetime-local"
+                  type="date"
                   required
                   value={selectedDate}
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
                     setError('');
                   }}
-                  className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition"
+                  disabled={isLoading}
+                  className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition disabled:bg-neutral-100"
                 />
                 <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
               </div>
@@ -179,7 +188,8 @@ export default function ReopenJobModal({
                       setAppliedDate(e.target.value);
                       setAppliedDateError('');
                     }}
-                    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition"
+                    disabled={isLoading}
+                    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition disabled:bg-neutral-100"
                   />
                   <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
                 </div>
@@ -199,17 +209,19 @@ export default function ReopenJobModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2 disabled:opacity-50"
           >
-            <CheckCircle2 size={16} />
-            Confirm & Reopen
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            <span>{isLoading ? 'Processing...' : 'Confirm & Reopen'}</span>
           </button>
         </div>
       </div>

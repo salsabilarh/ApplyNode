@@ -1,6 +1,7 @@
 'use client';
 
-import { AlertTriangle, X, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, X, Trash2, Loader2 } from 'lucide-react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -17,12 +18,20 @@ export default function ConfirmationModal({
   title,
   message,
 }: ConfirmationModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
-  };
+  // Ganti handleConfirm menjadi async
+const handleConfirm = async () => {
+  setIsLoading(true);
+  try {
+    await onConfirm();
+  } finally {
+    setIsLoading(false);
+  }
+  onClose();
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
@@ -37,8 +46,8 @@ export default function ConfirmationModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
+            disabled={isLoading}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -53,16 +62,18 @@ export default function ConfirmationModal({
         <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2 disabled:opacity-50"
           >
-            <Trash2 size={16} />
-            Yes, Delete
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            <span>{isLoading ? 'Deleting...' : 'Yes, Delete'}</span>
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { AlertCircle, X, ArrowLeft, Calendar, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { AlertCircle, X, ArrowLeft, Calendar, CheckCircle2, Loader2 } from 'lucide-react';
 import { formatStageLabel } from '@/lib/utils';
 
 interface BackwardConfirmModalProps {
@@ -24,7 +25,19 @@ export default function BackwardConfirmModal({
   appliedDate,
   targetStatus,
 }: BackwardConfirmModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!isOpen) return null;
+
+  // Ganti handleConfirm menjadi async dan await onConfirm
+const handleConfirm = async () => {
+  setIsLoading(true);
+  try {
+    await onConfirm();
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const targetLabel = targetStatus === 'BACKLOG' ? 'To Apply' : 'Applying';
 
@@ -41,8 +54,8 @@ export default function BackwardConfirmModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
+            disabled={isLoading}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -88,16 +101,18 @@ export default function BackwardConfirmModal({
         <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+            onClick={handleConfirm}
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2 disabled:opacity-50"
           >
-            <CheckCircle2 size={16} />
-            Yes, Move
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            <span>{isLoading ? 'Processing...' : 'Yes, Move'}</span>
           </button>
         </div>
       </div>

@@ -1,7 +1,9 @@
+// DeadlineModal.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, X, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, X, Clock, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface DeadlineModalProps {
   isOpen: boolean;
@@ -9,6 +11,7 @@ interface DeadlineModalProps {
   onConfirm: (selectedDate: string) => void;
   positionName: string;
   companyName: string;
+  mode?: 'close' | 'reopen';   // new
 }
 
 export default function DeadlineModal({
@@ -17,9 +20,11 @@ export default function DeadlineModal({
   onConfirm,
   positionName,
   companyName,
+  mode = 'close',  // default = closing a job
 }: DeadlineModalProps) {
   const [selectedDate, setSelectedDate] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -31,21 +36,46 @@ export default function DeadlineModal({
       const minutes = String(now.getMinutes()).padStart(2, '0');
       setSelectedDate(`${year}-${month}-${day}T${hours}:${minutes}`);
       setError('');
+      setIsLoading(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const chosenDate = new Date(selectedDate);
     const now = new Date();
-    if (chosenDate >= now) {
-      setError('Deadline must be in the past to close this job.');
-      return;
+    now.setHours(0, 0, 0, 0); // compare dates only (ignore time)
+    chosenDate.setHours(0, 0, 0, 0);
+
+    if (mode === 'close') {
+      // When closing: deadline must be in the past
+      if (chosenDate >= now) {
+        setError('Deadline must be in the past to close this job.');
+        return;
+      }
+    } else {
+      // When reopening: deadline must be today or in the future
+      if (chosenDate < now) {
+        setError('New deadline cannot be in the past. Please choose today or a future date.');
+        return;
+      }
     }
-    onConfirm(selectedDate);
+
+    setIsLoading(true);
+    try {
+      onConfirm(selectedDate);
+    } finally {
+      setTimeout(() => setIsLoading(false), 300);
+    }
   };
+
+  const title = mode === 'close' ? 'Confirm Job Closure' : 'Reopen Job Application';
+  const buttonText = mode === 'close' ? 'Confirm & Close' : 'Reopen & Apply';
+  const helperText = mode === 'close'
+    ? 'Set the exact date and time when this job opportunity ended.'
+    : 'Set the new deadline for this job application.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
@@ -56,12 +86,12 @@ export default function DeadlineModal({
             <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
               <Calendar size={18} />
             </div>
-            <h3 className="font-bold text-base text-neutral-900">Confirm Job Closure</h3>
+            <h3 className="font-bold text-base text-neutral-900">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
+            disabled={isLoading}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -89,19 +119,15 @@ export default function DeadlineModal({
             </label>
             <div className="relative">
               <input
-                type="datetime-local"
+                type="date"
                 required
                 value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setError('');
-                }}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition"
+                onChange={(e) => setSelectedDate(e.target.value)}
+                disabled={isLoading}
+                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition disabled:bg-neutral-100"
               />
             </div>
-            <p className="text-[11px] text-neutral-500 mt-1.5">
-              Set the exact date and time when this job opportunity ended.
-            </p>
+            <p className="text-[11px] text-neutral-500 mt-1.5">{helperText}</p>
           </form>
         </div>
 
@@ -110,17 +136,19 @@ export default function DeadlineModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2 disabled:opacity-50"
           >
-            <CheckCircle2 size={16} />
-            Confirm & Close
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            <span>{isLoading ? 'Processing...' : buttonText}</span>
           </button>
         </div>
       </div>

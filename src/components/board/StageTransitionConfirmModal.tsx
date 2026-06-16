@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AlertCircle, X, ArrowRightLeft, CheckCircle2, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { AlertCircle, X, ArrowRightLeft, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
 import { formatStageLabel } from '@/lib/utils';
 
-// Urutan status (salin dari konstanta global atau import)
 const STATUS_ORDER = [
   'BACKLOG', 'APPLYING', 'APPLIED', 'ADMIN_SCREENING', 'ASSESSMENT', 'FGD_LGD',
   'INTERVIEW_HR', 'INTERVIEW_USER', 'INTERVIEW_EXECUTIVE', 'MEDICAL_CHECK_UP', 'OFFERING', 'CLOSED'
@@ -39,35 +38,42 @@ export default function StageTransitionConfirmModal({
 }: StageTransitionConfirmModalProps) {
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
   const [error, setError] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const isInitialized = useRef(false);
 
-  // Menentukan apakah suatu stage wajib (tidak bisa di-uncheck)
+  // ========== LOGIS MANDATORY ==========
   const isMandatory = (stage: string): boolean => {
-    // Target stage selalu wajib
+    // Stage target selalu wajib
     if (stage === targetStatus) return true;
-    // Stage APPLIED wajib jika target berada pada atau setelah APPLIED
-    const targetIdx = STATUS_ORDER.indexOf(targetStatus);
-    const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
-    if (stage === 'APPLIED' && targetIdx >= appliedIdx) return true;
+
+    // Stage APPLIED wajib jika target status BUKAN CLOSED
+    // dan target status berada di posisi APPLIED atau setelahnya
+    if (stage === 'APPLIED') {
+      if (targetStatus === 'CLOSED') return false;
+      const targetIdx = STATUS_ORDER.indexOf(targetStatus);
+      const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
+      return targetIdx >= appliedIdx;
+    }
+
     return false;
   };
 
-  // Inisialisasi pilihan saat modal terbuka
+  // Inisialisasi selectedStages saat modal terbuka pertama kali
   useEffect(() => {
-    if (isOpen) {
-      // Pilih semua stage yang ada, pastikan semua mandatory stage termasuk
-      let initialSelected = [...stagesToUpdate];
-      for (const stage of stagesToUpdate) {
-        if (isMandatory(stage) && !initialSelected.includes(stage)) {
-          initialSelected.push(stage);
-        }
-      }
-      setSelectedStages(initialSelected);
+    if (isOpen && !isInitialized.current) {
+      isInitialized.current = true;
+      const mandatory = stagesToUpdate.filter(s => isMandatory(s));
+      const optional = stagesToUpdate.filter(s => !isMandatory(s));
+      setSelectedStages([...mandatory, ...optional]);
       setError('');
+    } else if (!isOpen) {
+      isInitialized.current = false;
+      setIsProcessing(false);
     }
   }, [isOpen, stagesToUpdate, targetStatus]);
 
   const toggleStage = (stage: string) => {
-    if (isMandatory(stage)) return; // tidak bisa diubah
+    if (isMandatory(stage)) return;
     setSelectedStages(prev =>
       prev.includes(stage) ? prev.filter(s => s !== stage) : [...prev, stage]
     );
@@ -75,13 +81,11 @@ export default function StageTransitionConfirmModal({
   };
 
   const toggleAll = () => {
-    const selectableStages = stagesToUpdate.filter(s => !isMandatory(s));
     const mandatoryStages = stagesToUpdate.filter(s => isMandatory(s));
+    const selectableStages = stagesToUpdate.filter(s => !isMandatory(s));
     if (selectedStages.length === stagesToUpdate.length) {
-      // Unselect semua yang tidak mandatory
       setSelectedStages(mandatoryStages);
     } else {
-      // Select semua stage
       setSelectedStages([...stagesToUpdate]);
     }
     if (error) setError('');
@@ -91,7 +95,6 @@ export default function StageTransitionConfirmModal({
   const hasNoSelection = selectedStages.length === 0;
 
   const handleConfirm = () => {
-    // Pastikan semua mandatory stage terpilih
     const missingMandatory = stagesToUpdate.filter(s => isMandatory(s) && !selectedStages.includes(s));
     if (missingMandatory.length > 0) {
       setError(`Stage(s) "${missingMandatory.map(s => formatStageLabel(s)).join(', ')}" must be selected.`);
@@ -101,6 +104,7 @@ export default function StageTransitionConfirmModal({
       setError('Please select at least one stage to set a date.');
       return;
     }
+    setIsProcessing(true);
     onConfirm(selectedStages);
   };
 
@@ -139,7 +143,7 @@ export default function StageTransitionConfirmModal({
           </div>
         </div>
 
-        {/* Tabel Stages dengan checkbox */}
+        {/* Tabel Stages */}
         <div className="p-5">
           <div className="flex justify-between items-center mb-2">
             <p className="font-semibold text-neutral-800 text-sm">Stages affected:</p>
@@ -205,24 +209,34 @@ export default function StageTransitionConfirmModal({
               <AlertCircle size={12} /> {error}
             </div>
           )}
-          <p className="text-sm text-neutral-600 mt-3">
-            Select which stages you want to set dates for. Unselected stages will have their dates reset to null.<br />
-          </p>
+<p className="text-sm text-neutral-600 mt-3">
+  {customTitle === "Reopen Job Application" 
+    ? "Select which stages you want to set dates for (from Applied up to the target stage). Unselected stages will have their dates reset to null."
+    : "Select which stages you want to set dates for. Unselected stages will have their dates reset to null."
+  }
+</p>
         </div>
 
         {/* Footer */}
         <div className="flex justify-end gap-3 p-5 pt-0 bg-neutral-50/50">
-          <button onClick={onClose} className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border rounded-xl">Cancel</button>
-          <button 
-            onClick={handleConfirm} 
-            disabled={hasNoSelection}
-            className={`px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition ${
-              hasNoSelection 
-                ? 'bg-neutral-400 cursor-not-allowed' 
+          <button
+            onClick={onClose}
+            disabled={isProcessing}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border rounded-xl disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={hasNoSelection || isProcessing}
+            className={`px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition flex items-center gap-2 ${
+              hasNoSelection || isProcessing
+                ? 'bg-neutral-400 cursor-not-allowed'
                 : 'bg-primary-600 hover:bg-primary-700 active:scale-95'
             }`}
           >
-            Yes, Continue
+            {isProcessing && <Loader2 size={16} className="animate-spin" />}
+            <span>{isProcessing ? 'Processing...' : 'Yes, Continue'}</span>
           </button>
         </div>
       </div>

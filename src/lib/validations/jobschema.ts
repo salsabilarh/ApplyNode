@@ -7,7 +7,9 @@ export const jobBaseSchema = z.object({
   sourceLink: z.string().url().optional().or(z.literal('')),
   description: z.string().optional(),
   duration: z.string().optional(),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format deadline harus YYYY-MM-DD'),
+workMethod: z.enum(['WFH', 'WFO', 'HYBRID']).optional().nullable(),
+durationUnit: z.enum(['DAYS', 'WEEKS', 'MONTHS', 'YEARS']).optional().default('MONTHS'),
+deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format deadline harus YYYY-MM-DD').optional().nullable(),
   openingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal buka harus YYYY-MM-DD').optional(),
   priority: z.enum(['HIGH', 'MEDIUM', 'LOW']),
   status: z.enum([
@@ -19,7 +21,10 @@ export const jobBaseSchema = z.object({
   plannedApplyTime: z.string().optional(),
   applyNotes: z.string().optional(),
   notes: z.string().optional(),
-  jobType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'FREELANCE']).optional(),
+jobType: z.enum([
+    'FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'FREELANCE',
+    'PROJECT_BASED', 'BOOTCAMP'   // ← tambahkan semua nilai dari Prisma
+  ]).optional().nullable(),
 });
 
 export const createJobSchema = jobBaseSchema;

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Job } from '@/types/job';
 import { format } from 'date-fns';
-import { formatStageLabel, getDateFieldName, STATUS_ORDER } from '@/lib/utils';
+import { formatJobType, formatStageLabel, getDateFieldName, formatDurationUnitLabel, formatWorkMethodLabel, STATUS_ORDER } from '@/lib/utils';
 
 interface ChecklistItem {
   id: string;
@@ -73,11 +73,15 @@ export default function JobView({ job }: JobViewProps) {
     LOW: 'badge-success'
   };
 
-  // Helper untuk mendapatkan nilai tanggal stage
   const getStageDate = (status: string): string | null => {
     const field = getDateFieldName(status);
     if (!field) return null;
     return (job as any)[field] || null;
+  };
+
+  const formatPriority = (priority: string | null): string => {
+    if (!priority) return '-';
+    return priority;
   };
 
   const toggleChecklistItem = async (itemId: string) => {
@@ -112,7 +116,7 @@ export default function JobView({ job }: JobViewProps) {
 
   return (
     <div className="w-full space-y-6 pb-12">
-      {/* Header with back and edit */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -143,14 +147,14 @@ export default function JobView({ job }: JobViewProps) {
                 <Building2 size={14} />
                 {job.company}
               </span>
-              <span className="text-neutral-300">•</span>
               <span className={`badge ${statusBadgeClass[job.status]}`}>
                 {job.status.replace(/_/g, ' ')}
               </span>
-              <span className={`badge ${priorityBadgeClass[job.priority]}`}>
-                <Flag size={12} className="inline mr-1" />
-                {job.priority}
-              </span>
+              {job.priority && (
+                <span className={`badge ${priorityBadgeClass[job.priority]}`}>
+                  {formatPriority(job.priority)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -256,9 +260,9 @@ export default function JobView({ job }: JobViewProps) {
           )}
         </div>
 
-        {/* Sidebar: Details, Dates, Links, Timeline - kanan */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Job Details - tanpa icon di detail row */}
+          {/* Job Details */}
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100">
               <Briefcase size={16} className="text-primary-500" />
@@ -267,17 +271,30 @@ export default function JobView({ job }: JobViewProps) {
             <div className="space-y-1">
               <div className="flex justify-between py-1">
                 <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Job Type</span>
-                <span className="text-sm font-medium text-neutral-800">{job.jobType.replace(/_/g, ' ')}</span>
+                <span className="text-sm font-medium text-neutral-800">{formatJobType(job.jobType) || '-'}</span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Duration (Months)</span>
-                <span className="text-sm font-medium text-neutral-800">{job.duration ? `${job.duration} months` : '-'}</span>
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Location</span>
+                <span className="text-sm font-medium text-neutral-800">{job.location || '-'}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Work Method</span>
+                <span className="text-sm font-medium text-neutral-800">
+                  {job.workMethod ? formatWorkMethodLabel(job.workMethod) : '-'}
+                </span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Duration</span>
+                <span className="text-sm font-medium text-neutral-800">
+                  {job.duration && job.durationUnit 
+                    ? `${job.duration} ${formatDurationUnitLabel(job.durationUnit)}` 
+                    : '-'}
+                </span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Platform</span>
-                <span className="text-sm font-medium text-neutral-800">{job.platform}</span>
+                <span className="text-sm font-medium text-neutral-800">{job.platform || '-'}</span>
               </div>
-
             </div>
           </div>
 
@@ -290,17 +307,12 @@ export default function JobView({ job }: JobViewProps) {
               </h3>
             </div>
             <div className="p-5 space-y-1">
-              {/* Deadline */}
-              <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
-                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Deadline</span>
-                <span className="text-sm font-medium text-neutral-800">{formatDate(job.deadline) || '-'}</span>
-              </div>
               {/* Opening Date */}
               <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
                 <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Opening Date</span>
                 <span className="text-sm font-medium text-neutral-800">{formatDate(job.openingDate) || '-'}</span>
               </div>
-              {/* Planned Apply Date (hanya jika ada) */}
+              {/* Planned Apply Date */}
               {job.plannedApplyDate && !job.appliedDate && (
                 <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
                   <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Planned Apply Date</span>
@@ -314,7 +326,13 @@ export default function JobView({ job }: JobViewProps) {
                   <span className="text-sm font-medium text-neutral-800">{formatDate(job.appliedDate)}</span>
                 </div>
               )}
-              {/* Stage dates lainnya (tidak termasuk APPLIED) */}
+              {/* Deadline */}
+              <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Deadline Applied</span>
+                <span className="text-sm font-medium text-neutral-800">{formatDate(job.deadline) || '-'}</span>
+              </div>
+
+              {/* Stage dates */}
               {STATUS_ORDER.filter(s => s !== 'BACKLOG' && s !== 'APPLYING' && s !== 'CLOSED' && s !== 'APPLIED').map(status => {
                 const dateValue = getStageDate(status);
                 if (!dateValue) return null;
@@ -325,28 +343,24 @@ export default function JobView({ job }: JobViewProps) {
                   </div>
                 );
               })}
-              {/* Closed Date (hanya jika ada) */}
+              {/* Closed Date */}
               {job.closedDate && (
                 <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
                   <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Closed Date</span>
                   <span className="text-sm font-medium text-neutral-800">{formatDate(job.closedDate)}</span>
                 </div>
               )}
-              {/* Planned Apply Time (opsional) */}
+              {/* Planned Apply Time */}
               {job.plannedApplyTime && (
                 <div className="flex justify-between py-2 border-b border-neutral-100 last:border-0">
                   <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Planned Time</span>
                   <span className="text-sm font-medium text-neutral-800">{job.plannedApplyTime}</span>
                 </div>
               )}
-              {/* Pesan jika tidak ada satupun tanggal */}
-              {!job.deadline && !job.openingDate && !job.plannedApplyDate && !job.appliedDate && (
-                <div className="text-center text-neutral-400 text-sm py-4">No dates provided</div>
-              )}
             </div>
           </div>
 
-          {/* Links - tanpa icon di detail row */}
+          {/* Links */}
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-neutral-700 flex items-center gap-2 mb-4 pb-2 border-b border-neutral-100">
               <LinkIcon size={16} className="text-blue-500" />

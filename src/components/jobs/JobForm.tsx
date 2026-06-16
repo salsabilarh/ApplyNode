@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { JobType, Priority, JobStatus } from '@prisma/client';
+import { JobType, Priority, JobStatus, DurationUnit, WorkMethod } from '@prisma/client';
 import { 
   ArrowLeft, Loader2, Briefcase, Calendar, 
   FileText, AlertCircle, Trash2, Plus, CheckCircle2, ExternalLink,
@@ -12,8 +12,8 @@ import { useModal } from '@/context/ModalContext';
 import AlertModal from '@/components/ui/AlertModal';
 import StageDatesInputModal from '@/components/board/StageDatesInputModal';
 import StageTransitionConfirmModal from '@/components/board/StageTransitionConfirmModal';
-import { STATUS_ORDER, formatStageLabel } from '@/lib/utils';
 import DeadlineModal from '../board/DeadlineModal';
+import { STATUS_ORDER, formatJobType, formatWorkMethodLabel, formatDurationUnitLabel, getStagesAffected } from '@/lib/utils';
 
 // ---------- Types ----------
 interface NoteItem {
@@ -25,64 +25,70 @@ interface NoteItem {
 interface JobFormData {
   id?: string;
   position: string;
-  jobType: JobType;
+  jobType: JobType | null;
   company: string;
-  platform: string;
+  platform: string | null;
   sourceLink: string;
   applyLink: string;
   description: string;
   requirement: string;
-  duration: string;
-  deadline: string;
-  openingDate: string;
-  priority: Priority;
+  duration: string | null;
+  deadline: string | null;
+  openingDate: string | null;
+  priority: Priority | null;
   status: JobStatus;
-  plannedApplyDate: string;
+  location: string | null;
+  workMethod: WorkMethod | null;
+  durationUnit: DurationUnit | null;
+  plannedApplyDate: string | null;
   applyNotes: string;
   notes: string;
-  appliedDate: string;
-  adminScreeningDate: string;
-  assessmentDate: string;
-  fgdLgdDate: string;
-  interviewHrDate: string;
-  interviewUserDate: string;
-  interviewExecutiveDate: string;
-  medicalCheckUpDate: string;
-  offeringDate: string;
-  closedDate: string;
+  appliedDate: string | null;
+  adminScreeningDate: string | null;
+  assessmentDate: string | null;
+  fgdLgdDate: string | null;
+  interviewHrDate: string | null;
+  interviewUserDate: string | null;
+  interviewExecutiveDate: string | null;
+  medicalCheckUpDate: string | null;
+  offeringDate: string | null;
+  closedDate: string | null;
 }
 
 const emptyJob: JobFormData = {
   position: '',
-  jobType: 'FULL_TIME',
+  jobType: null,
   company: '',
-  platform: 'LinkedIn',
+  platform: '',
   sourceLink: '',
   applyLink: '',
   description: '',
   requirement: '',
   duration: '',
-  deadline: '',
-  openingDate: '',
-  priority: 'MEDIUM',
+  priority: null,
   status: 'BACKLOG',
-  plannedApplyDate: '',
+    location: null,
+  workMethod: null,
+  durationUnit: 'MONTHS',
   applyNotes: '[]',
   notes: '',
-  appliedDate: '',
-  adminScreeningDate: '',
-  assessmentDate: '',
-  fgdLgdDate: '',
-  interviewHrDate: '',
-  interviewUserDate: '',
-  interviewExecutiveDate: '',
-  medicalCheckUpDate: '',
-  offeringDate: '',
-  closedDate: '',
+  deadline: null,
+  openingDate: null,
+  plannedApplyDate: null,
+  appliedDate: null,
+  adminScreeningDate: null,
+  assessmentDate: null,
+  fgdLgdDate: null,
+  interviewHrDate: null,
+  interviewUserDate: null,
+  interviewExecutiveDate: null,
+  medicalCheckUpDate: null,
+  offeringDate: null,
+  closedDate: null,
 };
 
-const formatDateField = (value: any): string => {
-  if (!value) return '';
+const formatDateField = (value: any): string | null => {
+  if (!value) return null;
   if (typeof value === 'string') {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     if (value.includes('T')) return value.split('T')[0];
@@ -94,7 +100,7 @@ const formatDateField = (value: any): string => {
   try {
     return new Date(value).toISOString().split('T')[0];
   } catch {
-    return '';
+    return null;
   }
 };
 
@@ -103,9 +109,9 @@ const formatInitialData = (data: any): JobFormData => {
   return {
     id: data.id,
     position: data.position || '',
-    jobType: data.jobType || 'FULL_TIME',
+    jobType: data.jobType || null,
     company: data.company || '',
-    platform: data.platform || 'LinkedIn',
+    platform: data.platform || '',
     sourceLink: data.sourceLink || '',
     applyLink: data.applyLink || '',
     description: data.description || '',
@@ -113,8 +119,11 @@ const formatInitialData = (data: any): JobFormData => {
     duration: data.duration || '',
     deadline: formatDateField(data.deadline),
     openingDate: formatDateField(data.openingDate),
-    priority: data.priority || 'MEDIUM',
+    priority: data.priority || null,
     status: data.status || 'BACKLOG',
+    location: data.location || null,
+    workMethod: data.workMethod || null,
+    durationUnit: data.durationUnit ?? null,
     plannedApplyDate: formatDateField(data.plannedApplyDate),
     applyNotes: data.applyNotes || '[]',
     notes: data.notes || '',
@@ -162,8 +171,10 @@ function isValidUrl(string: string): boolean {
 }
 
 // ========== REUSABLE FORM COMPONENTS ==========
-const FormRow = ({ children }: { children: React.ReactNode }) => (
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">{children}</div>
+const FormRow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
+  <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 items-start ${className}`}>
+    {children}
+  </div>
 );
 
 const Label = ({ label, required }: { label: string; required?: boolean }) => (
@@ -204,25 +215,12 @@ const TextArea = ({ name, value, onChange, rows, placeholder }: any) => (
   />
 );
 
-const Select = ({ name, value, onChange, options }: any) => (
-  <select
-    name={name}
-    value={value}
-    onChange={onChange}
-    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-  >
-    {options.map((opt: string) => (
-      <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
-    ))}
-  </select>
-);
-
 const DateInput = ({ name, value, onChange, required, error, disabled }: any) => (
   <div className="relative">
     <input
       type="date"
       name={name}
-      value={value}
+      value={value || ''}
       onChange={onChange}
       required={required}
       disabled={disabled}
@@ -255,61 +253,6 @@ const getDateFieldName = (status: string): string | null => {
   return map[status] || null;
 };
 
-// Fungsi helper untuk stage affected (sama dengan BoardClient)
-// Fungsi helper untuk stage affected (sama dengan BoardClient - versi optimasi)
-const getStagesAffected = (current: string, target: string) => {
-  const currentIdx = STATUS_ORDER.indexOf(current);
-  const targetIdx = STATUS_ORDER.indexOf(target);
-  const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
-  const stagesToUpdate: string[] = [];
-  const stagesToReset: string[] = [];
-
-  if (targetIdx > currentIdx) {
-    // ================= MAJU =================
-    if (targetIdx >= appliedIdx) {
-      // Tampilkan semua stage dari APPLIED hingga target
-      for (let i = appliedIdx; i <= targetIdx; i++) {
-        const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
-          stagesToUpdate.push(stage);
-        }
-      }
-    } else {
-      // Target sebelum APPLIED (hanya BACKLOG/APPLYING) - tidak ada date field
-      for (let i = currentIdx + 1; i <= targetIdx; i++) {
-        const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
-          stagesToUpdate.push(stage);
-        }
-      }
-    }
-  } else {
-    // ================= MUNDUR =================
-    // Reset semua stage setelah target hingga current
-    for (let i = targetIdx + 1; i <= currentIdx; i++) {
-      const stage = STATUS_ORDER[i];
-      if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
-        stagesToReset.push(stage);
-      }
-    }
-    // Tampilkan stage dari APPLIED hingga target (jika target >= APPLIED)
-    if (targetIdx >= appliedIdx) {
-      for (let i = appliedIdx; i <= targetIdx; i++) {
-        const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
-          stagesToUpdate.push(stage);
-        }
-      }
-    } else {
-      // Target di bawah APPLIED: hanya target stage jika punya date field
-      if (target !== 'BACKLOG' && target !== 'APPLYING' && getDateFieldName(target)) {
-        stagesToUpdate.push(target);
-      }
-    }
-  }
-  return { stagesToUpdate, stagesToReset };
-};
-
 const getReopenStages = (targetStatus: string) => {
   const targetIdx = STATUS_ORDER.indexOf(targetStatus);
   const stagesToUpdate: string[] = [];
@@ -335,12 +278,24 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const { openModal } = useModal();
   const [form, setForm] = useState<JobFormData>(() => formatInitialData(initialData));
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ deadline?: string; plannedApplyDate?: string; openingDate?: string }>({});
   const [activeTab, setActiveTab] = useState(0);
   const tabs = ['Basic Info', 'Time & Priority', 'Execution Plan'];
   const originalStatus = initialData?.status as JobStatus | undefined;
+  const [expiredConfirmOpen, setExpiredConfirmOpen] = useState(false);
+  const [errors, setErrors] = useState<{
+    position?: string;
+    company?: string;
+    platform?: string;
+    deadline?: string;
+    plannedApplyDate?: string;
+    openingDate?: string;
+    appliedDate?: string;
+  }>({});
 
-  // State untuk stage transition (sama seperti BoardClient)
+  // State untuk melacak apakah priority diubah manual
+  const [isPriorityManuallySet, setIsPriorityManuallySet] = useState(false);
+
+  // State untuk stage transition
   const [stageConfirm, setStageConfirm] = useState<{
     isOpen: boolean;
     currentStatus: string;
@@ -390,6 +345,29 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   });
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
+  // Auto update priority saat deadline berubah (hanya jika mode AUTO aktif)
+  useEffect(() => {
+    if (!isPriorityManuallySet) {
+      const newPriority = calculatePriorityFromDeadline(form.deadline);
+      if (newPriority !== form.priority) {
+        setForm(prev => ({ ...prev, priority: newPriority }));
+      }
+    }
+  }, [form.deadline, isPriorityManuallySet, form.priority]);
+
+  // Fungsi menghitung priority berdasarkan deadline
+  const calculatePriorityFromDeadline = (deadlineStr: string | null): Priority | null => {
+    if (!deadlineStr) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadlineDate = new Date(deadlineStr);
+    deadlineDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0 && diffDays <= 4) return 'HIGH';
+    if (diffDays >= 5 && diffDays <= 10) return 'MEDIUM';
+    return 'LOW';
+  };
+
   const updateChecklist = useCallback((newList: NoteItem[]) => {
     setChecklist(newList);
     setForm(prev => ({ ...prev, applyNotes: JSON.stringify(newList) }));
@@ -408,33 +386,80 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const deleteChecklistItem = (id: string) => {
     updateChecklist(checklist.filter(item => item.id !== id));
   };
-
-  const validateDates = (deadline: string, plannedApply: string, opening: string) => {
+  
+  const validateDates = (
+    deadline: string | null,
+    plannedApply: string | null,
+    opening: string | null,
+    appliedDate: string | null
+  ) => {
     const newErrors: typeof errors = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const dDate = deadline ? new Date(deadline) : null;
     const pDate = plannedApply ? new Date(plannedApply) : null;
     const oDate = opening ? new Date(opening) : null;
-    [dDate, pDate, oDate].forEach(d => d?.setHours(0, 0, 0, 0));
+    const aDate = appliedDate ? new Date(appliedDate) : null;
 
-    if (oDate && dDate && oDate > dDate) newErrors.openingDate = 'Opening date cannot be after deadline.';
-    if (oDate && pDate && oDate > pDate) newErrors.openingDate = 'Opening date cannot be after planned apply date.';
+    [dDate, pDate, oDate, aDate].forEach(d => d?.setHours(0, 0, 0, 0));
+
+    if (pDate && pDate < today) {
+      newErrors.plannedApplyDate = 'Planned apply date cannot be in the past.';
+    }
+    if (oDate && pDate && oDate > pDate) {
+      newErrors.openingDate = 'Opening date cannot be after planned apply date.';
+      newErrors.plannedApplyDate = 'Planned apply date cannot be before opening date.';
+    }
+    if (oDate && dDate && oDate > dDate) {
+      newErrors.openingDate = 'Opening date cannot be after deadline.';
+    }
     if (pDate && dDate && pDate > dDate) {
       newErrors.plannedApplyDate = 'Planned apply date cannot exceed deadline.';
       newErrors.deadline = 'Deadline cannot be before planned apply date.';
     }
-    setErrors(newErrors);
+    if (aDate && dDate && aDate > dDate) {
+      newErrors.appliedDate = 'Applied date cannot be after the deadline.';
+    }
+    if (aDate && oDate && aDate < oDate) {
+      newErrors.appliedDate = 'Applied date cannot be before opening date.';
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (['deadline', 'plannedApplyDate', 'openingDate'].includes(name)) {
-      validateDates(
-        name === 'deadline' ? value : form.deadline,
-        name === 'plannedApplyDate' ? value : form.plannedApplyDate,
-        name === 'openingDate' ? value : form.openingDate
-      );
+
+    // Clear errors
+    if (name === 'position') setErrors(prev => ({ ...prev, position: undefined }));
+    if (name === 'company') setErrors(prev => ({ ...prev, company: undefined }));
+    if (name === 'platform') setErrors(prev => ({ ...prev, platform: undefined }));
+    if (name === 'plannedApplyDate') setErrors(prev => ({ ...prev, plannedApplyDate: undefined }));
+    if (name === 'openingDate') setErrors(prev => ({ ...prev, openingDate: undefined }));
+    if (name === 'deadline') setErrors(prev => ({ ...prev, deadline: undefined }));
+    if (name === 'appliedDate') setErrors(prev => ({ ...prev, appliedDate: undefined }));
+
+    if (name === 'priority') {
+      setIsPriorityManuallySet(true);
+    }
+
+    if (name === 'jobType') {
+      setForm(prev => ({ ...prev, jobType: value === '' ? null : value as JobType }));
+      return;
+    }
+
+    // ✅ Tangani workMethod, durationUnit, location
+    if (name === 'workMethod' || name === 'durationUnit' || name === 'location') {
+      setForm(prev => ({ ...prev, [name]: value === '' ? null : value }));
+      return;
+    }
+
+    if (['deadline', 'openingDate', 'plannedApplyDate', 'appliedDate'].includes(name)) {
+      setForm(prev => ({ ...prev, [name]: value === '' ? null : value }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
     }
   };
 
@@ -453,13 +478,18 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const finalSubmit = useCallback(async (finalForm: JobFormData) => {
     setLoading(true);
     try {
-      const res = await fetch(finalForm.id ? `/api/jobs/${finalForm.id}` : '/api/jobs', {
-        method: finalForm.id ? 'PATCH' : 'POST',
+      const submitData: any = { ...finalForm };
+      const res = await fetch(submitData.id ? `/api/jobs/${submitData.id}` : '/api/jobs', {
+        method: submitData.id ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalForm),
+        body: JSON.stringify(submitData),
       });
       if (res.ok) {
-        router.push('/');
+        if (submitData.id) {
+          router.push(`/jobs/${submitData.id}/view`);
+        } else {
+          router.push('/');
+        }
         router.refresh();
       } else {
         const err = await res.json();
@@ -472,7 +502,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
     }
   }, [router]);
 
-  // Handler konfirmasi stage (dari StageTransitionConfirmModal)
   const handleStageConfirm = useCallback((selectedStages: string[]) => {
     const { currentStatus, targetStatus, stagesToUpdate, stagesToReset, isReopen, currentDeadline } = stageConfirm;
     
@@ -497,101 +526,151 @@ export default function JobForm({ initialData }: { initialData?: any }) {
     });
   }, [stageConfirm, form]);
 
-  // Handler input tanggal dari StageDatesInputModal
-const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>, deadline?: string) => {
-  const { targetStatus, stagesToUpdate, allStagesToUpdate, isReopen } = stageDatesModal;
-  const stagesToResetOriginal = tempResetList;
-  
-  const unselectedStages = allStagesToUpdate.filter(s => !stagesToUpdate.includes(s));
-  const allResetStages = [...stagesToResetOriginal, ...unselectedStages];
+  const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>, deadline?: string) => {
+    const { targetStatus, stagesToUpdate, allStagesToUpdate, isReopen } = stageDatesModal;
+    const stagesToResetOriginal = tempResetList;
+    
+    const unselectedStages = allStagesToUpdate.filter(s => !stagesToUpdate.includes(s));
+    const allResetStages = [...stagesToResetOriginal, ...unselectedStages];
 
-  // Konversi targetStatus (string) ke JobStatus
-  const updatedForm = { ...form, status: targetStatus as JobStatus };  // ← tambahkan "as JobStatus"
-  for (const [stage, date] of Object.entries(dates)) {
-    const field = getDateFieldName(stage);
-    if (field && date) (updatedForm as any)[field] = date;
-  }
-  for (const stage of allResetStages) {
-    const field = getDateFieldName(stage);
-    if (field) (updatedForm as any)[field] = '';
-  }
-  if (isReopen && deadline) {
-    updatedForm.deadline = deadline.split('T')[0];
-  }
+    const updatedForm = { ...form, status: targetStatus as JobStatus };
+    if (targetStatus === 'CLOSED') {
+      updatedForm.plannedApplyDate = null;
+    }
+    for (const [stage, date] of Object.entries(dates)) {
+      const field = getDateFieldName(stage);
+      if (field && date) (updatedForm as any)[field] = date;
+    }
+    for (const stage of allResetStages) {
+      const field = getDateFieldName(stage);
+      if (field) (updatedForm as any)[field] = null;
+    }
+    if (isReopen && deadline) {
+      updatedForm.deadline = deadline.split('T')[0];
+    }
 
-  setStageDatesModal({ isOpen: false, targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false });
-  setTempResetList([]);
-  await finalSubmit(updatedForm);
-}, [stageDatesModal, tempResetList, form, finalSubmit]);
+    setStageDatesModal({ isOpen: false, targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false });
+    setTempResetList([]);
+    await finalSubmit(updatedForm);
+  }, [stageDatesModal, tempResetList, form, finalSubmit]);
 
-  // Handler untuk kasus CLOSED (pakai DeadlineModal)
   const handleDeadlineConfirm = useCallback(async (deadlineDate: string) => {
-    const updatedForm = { ...form, status: JobStatus.CLOSED, deadline: deadlineDate.split('T')[0] };
+    const updatedForm = { 
+      ...form, 
+      status: JobStatus.CLOSED, 
+      deadline: deadlineDate.split('T')[0],
+      plannedApplyDate: null
+    };
     await finalSubmit(updatedForm);
   }, [form, finalSubmit]);
 
-  // Submit utama (saat klik save)
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!form.deadline) {
-    setErrors(prev => ({ ...prev, deadline: 'Deadline is required.' }));
-    setActiveTab(1);
-    return;
-  }
-  if (!validateDates(form.deadline, form.plannedApplyDate, form.openingDate)) return;
-
-  const original = originalStatus;
-  const newStatus = form.status;
-
-  if (!original || original === newStatus) {
-    await finalSubmit(form);
-    return;
-  }
-
-  // Kasus pindah ke CLOSED - gunakan konversi ke string
-  if (String(newStatus) === 'CLOSED') {
-    setShowDeadlineModal(true);
-    return;
-  }
-
-  // Kasus dari CLOSED (reopen) - hanya jika original CLOSED dan newStatus bukan CLOSED
-  if (String(original) === 'CLOSED' && String(newStatus) !== 'CLOSED') {
-    const targetIdx = STATUS_ORDER.indexOf(newStatus);
-    const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
-    if (targetIdx >= appliedIdx) {
-      const { stagesToUpdate, stagesToReset } = getReopenStages(newStatus);
-      setStageConfirm({
-        isOpen: true,
-        currentStatus: original,
-        targetStatus: newStatus,
-        stagesToUpdate,
-        stagesToReset,
-        isForward: false,
-        isReopen: true,
-        currentDeadline: form.deadline,
-      });
-    } else {
-      // Reopen ke BACKLOG/APPLYING langsung
-      const updatedForm = { ...form, status: newStatus };
-      await finalSubmit(updatedForm);
+  const validateAppliedDateRequired = () => {
+    if (form.status === 'BACKLOG' || form.status === 'APPLYING' || form.status === 'CLOSED') {
+      setErrors(prev => ({ ...prev, appliedDate: undefined }));
+      return true;
     }
-    return;
-  }
+    if (!form.appliedDate) {
+      setErrors(prev => ({ ...prev, appliedDate: 'Applied date is required for this status.' }));
+      return false;
+    }
+    setErrors(prev => ({ ...prev, appliedDate: undefined }));
+    return true;
+  };
 
-  // Transisi biasa
-  const { stagesToUpdate, stagesToReset } = getStagesAffected(original, newStatus);
-  const isForward = STATUS_ORDER.indexOf(newStatus) > STATUS_ORDER.indexOf(original);
-  setStageConfirm({
-    isOpen: true,
-    currentStatus: original,
-    targetStatus: newStatus,
-    stagesToUpdate,
-    stagesToReset,
-    isForward,
-    isReopen: false,
-  });
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // ✅ Validasi Position dan Company
+    if (!form.position.trim()) {
+      setErrors(prev => ({ ...prev, position: 'Position is required.' }));
+      setActiveTab(0);
+      return;
+    }
+    if (!form.company.trim()) {
+      setErrors(prev => ({ ...prev, company: 'Company is required.' }));
+      setActiveTab(0);
+      return;
+    }
+if (!form.platform?.trim()) {
+  setErrors(prev => ({ ...prev, platform: 'Platform is required.' }));
+  setActiveTab(0);
+  return;
+}
+    if (!validateDates(form.deadline, form.plannedApplyDate, form.openingDate, form.appliedDate)) return;
+    if (!validateAppliedDateRequired()) {
+      setActiveTab(1);
+      return;
+    }
+    if (form.deadline && form.status !== 'CLOSED') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadlineDate = new Date(form.deadline);
+      if (deadlineDate < today) {
+        setExpiredConfirmOpen(true);
+        return;
+      }
+    }
+    const original = originalStatus;
+    const newStatus = form.status;
+
+    if (!original || original === newStatus) {
+      await finalSubmit(form);
+      return;
+    }
+
+    if (String(newStatus) === 'CLOSED') {
+      setShowDeadlineModal(true);
+      return;
+    }
+
+    if (String(original) === 'CLOSED' && String(newStatus) !== 'CLOSED') {
+      const targetIdx = STATUS_ORDER.indexOf(newStatus);
+      const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
+      if (targetIdx >= appliedIdx) {
+        const { stagesToUpdate, stagesToReset } = getReopenStages(newStatus);
+        setStageConfirm({
+          isOpen: true,
+          currentStatus: original,
+          targetStatus: newStatus,
+          stagesToUpdate,
+          stagesToReset,
+          isForward: false,
+          isReopen: true,
+          currentDeadline: form.deadline || undefined,
+        });
+      } else {
+        const updatedForm = { ...form, status: newStatus };
+        await finalSubmit(updatedForm);
+      }
+      return;
+    }
+
+    const { stagesToUpdate, stagesToReset } = getStagesAffected(original, newStatus);
+    const isForward = STATUS_ORDER.indexOf(newStatus) > STATUS_ORDER.indexOf(original);
+    setStageConfirm({
+      isOpen: true,
+      currentStatus: original,
+      targetStatus: newStatus,
+      stagesToUpdate,
+      stagesToReset,
+      isForward,
+      isReopen: false,
+    });
+  };
+
+  const handleExpiredConfirm = useCallback(() => {
+    setExpiredConfirmOpen(false);
+    const { stagesToUpdate, stagesToReset } = getStagesAffected(form.status, 'CLOSED');
+    setStageConfirm({
+      isOpen: true,
+      currentStatus: form.status,
+      targetStatus: 'CLOSED',
+      stagesToUpdate,
+      stagesToReset,
+      isForward: true,
+      isReopen: false,
+    });
+  }, [form.status]);
 
   const handleDelete = () => {
     if (!form.id) return;
@@ -626,6 +705,12 @@ const handleSubmit = async (e: React.FormEvent) => {
       ))}
     </div>
   );
+
+  // Opsi untuk job type dengan "Please select"
+  const jobTypeOptions = [
+    { value: '', label: 'Please select' },
+    ...Object.values(JobType).map(jt => ({ value: jt, label: formatJobType(jt) }))
+  ];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-24 px-4 sm:px-6 lg:px-8">
@@ -675,12 +760,96 @@ const handleSubmit = async (e: React.FormEvent) => {
         <div className="p-6">
           {activeTab === 0 && (
             <div className="space-y-6">
-              <FormRow><Label label="Position" required /><InputWrapper><TextInput name="position" value={form.position} onChange={handleInputChange} required placeholder="e.g., Frontend Developer" /></InputWrapper></FormRow>
-              <FormRow><Label label="Company" required /><InputWrapper><TextInput name="company" value={form.company} onChange={handleInputChange} required placeholder="e.g., PT Tech Solutions" /></InputWrapper></FormRow>
-              <FormRow><Label label="Job Type" required /><InputWrapper><Select name="jobType" value={form.jobType} onChange={handleInputChange} options={Object.values(JobType)} /></InputWrapper></FormRow>
-              <FormRow><Label label="Platform" required /><InputWrapper><TextInput name="platform" value={form.platform} onChange={handleInputChange} required placeholder="LinkedIn, Jobstreet, etc." /></InputWrapper></FormRow>
               <FormRow>
-                <Label label="Apply Link" required />
+                <Label label="Position" required />
+                <InputWrapper error={errors.position}>
+                  <TextInput name="position" value={form.position} onChange={handleInputChange} required placeholder="e.g., Frontend Developer" />
+                </InputWrapper>
+              </FormRow>
+              <FormRow>
+                <Label label="Company" required />
+                <InputWrapper error={errors.company}>
+                  <TextInput name="company" value={form.company} onChange={handleInputChange} required placeholder="e.g., PT Tech Solutions" />
+                </InputWrapper>
+              </FormRow>
+              {/* Location */}
+              <FormRow>
+                <Label label="Office Location" />
+                <InputWrapper>
+                  <TextInput
+                    name="location"
+                    value={form.location || ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Jakarta"
+                  />
+                </InputWrapper>
+              </FormRow>
+              <FormRow>
+                <Label label="Job Type" />
+                <InputWrapper>
+                  <select
+                    name="jobType"
+                    value={form.jobType === null ? '' : form.jobType}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleInputChange({ target: { name: 'jobType', value: val === '' ? null : val } } as any);
+                    }}
+                    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  >
+                    {jobTypeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </InputWrapper>
+              </FormRow>
+              {/* Work Method */}
+              <FormRow>
+                <Label label="Work Method" />
+                <InputWrapper>
+                  <select
+                    name="workMethod"
+                    value={form.workMethod || ''}
+                    onChange={handleInputChange}
+                    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  >
+                    <option value="">Please select</option>
+                    {Object.values(WorkMethod).map(method => (
+                <option key={method} value={method}>{formatWorkMethodLabel(method)}</option>
+              ))}
+
+                  </select>
+                </InputWrapper>
+              </FormRow>
+              {/* Duration */}
+              <FormRow className="items-center">
+                <Label label="Duration" />
+                <div className="sm:col-span-2 grid grid-cols-5 gap-2">
+                  <InputWrapper>
+                    <TextInput
+                      name="duration"
+                      value={form.duration || ''}
+                      onChange={handleInputChange}
+                      type="number"
+                      placeholder="e.g., 6"
+                    />
+                  </InputWrapper>
+                  <InputWrapper>
+                    <select
+                      name="durationUnit"
+                      value={form.durationUnit || ''}
+                      onChange={handleInputChange}
+                      className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    >
+                      <option value="">Please select</option>
+                      {Object.values(DurationUnit).map(unit => (
+                <option key={unit} value={unit}>{formatDurationUnitLabel(unit)}</option>
+              ))}
+                    </select>
+                  </InputWrapper>
+                </div>
+              </FormRow>
+              <FormRow>
+                <Label label="Apply Link" />
                 <InputWrapper>
                   <div className="flex gap-2 items-center">
                     <div className="flex-1">
@@ -689,7 +858,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                         value={form.applyLink} 
                         onChange={handleInputChange} 
                         type="text" 
-                        required 
                         placeholder="https://..., email@domain.com, or phone number" 
                       />
                     </div>
@@ -705,6 +873,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                     )}
                   </div>
                   <p className="text-[11px] text-neutral-500 mt-1">Fill in the application link, HR contact email, or telephone number.</p>
+                </InputWrapper>
+              </FormRow>
+              <FormRow><Label label="Requirements" /><InputWrapper><TextArea name="requirement" value={form.requirement} onChange={handleInputChange} rows={6} placeholder="List key qualifications and skills..." /></InputWrapper></FormRow>
+              <FormRow><Label label="Job Description" /><InputWrapper><TextArea name="description" value={form.description} onChange={handleInputChange} rows={8} placeholder="Paste the full job description here..." /></InputWrapper></FormRow>
+              <FormRow>
+                <Label label="Platform" required />
+                <InputWrapper error={errors.platform}>
+                  <TextInput
+                    name="platform"
+                    value={form.platform || ''}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="LinkedIn, Jobstreet, etc."
+                  />
                 </InputWrapper>
               </FormRow>
               <FormRow>
@@ -733,31 +915,47 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
                 </InputWrapper>
               </FormRow>
-              <FormRow><Label label="Recruitment Status" /><InputWrapper><Select name="status" value={form.status} onChange={handleInputChange} options={Object.values(JobStatus)} /></InputWrapper></FormRow>
-              <FormRow><Label label="Duration (months)" /><InputWrapper><TextInput name="duration" value={form.duration} onChange={handleInputChange} type="number" placeholder="e.g., 6" /></InputWrapper></FormRow>
-              <FormRow><Label label="Requirements" /><InputWrapper><TextArea name="requirement" value={form.requirement} onChange={handleInputChange} rows={6} placeholder="List key qualifications and skills..." /></InputWrapper></FormRow>
-              <FormRow><Label label="Job Description" /><InputWrapper><TextArea name="description" value={form.description} onChange={handleInputChange} rows={8} placeholder="Paste the full job description here..." /></InputWrapper></FormRow>
+              <FormRow><Label label="Recruitment Status" /><InputWrapper><select name="status" value={form.status} onChange={handleInputChange} className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">{Object.values(JobStatus).map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}</select></InputWrapper></FormRow>
             </div>
           )}
 
           {activeTab === 1 && (
             <div className="space-y-6">
-              <FormRow><Label label="Deadline" required /><InputWrapper error={errors.deadline}><DateInput name="deadline" value={form.deadline} onChange={handleInputChange} required error={errors.deadline} /></InputWrapper></FormRow>
               <FormRow><Label label="Opening Date" /><InputWrapper error={errors.openingDate}><DateInput name="openingDate" value={form.openingDate} onChange={handleInputChange} error={errors.openingDate} /></InputWrapper></FormRow>
+              <FormRow><Label label="Deadline" /><InputWrapper error={errors.deadline}><DateInput name="deadline" value={form.deadline} onChange={handleInputChange} error={errors.deadline} /></InputWrapper></FormRow>
               <FormRow>
                 <Label label="Applied Date" />
-                <InputWrapper>
-                  <DateInput 
-                    name="appliedDate" 
-                    value={form.appliedDate} 
-                    onChange={handleInputChange} 
-                  />
-                  <p className="text-[11px] text-neutral-500 mt-1">
-                    The date you actually applied (automatically filled when status becomes APPLIED).
-                  </p>
+                <InputWrapper error={errors.appliedDate}>
+                  <DateInput name="appliedDate" value={form.appliedDate} onChange={handleInputChange} />
+                  <p className="text-[11px] text-neutral-500 mt-1">The date you actually applied (required when status is not BACKLOG or APPLYING).</p>
                 </InputWrapper>
               </FormRow>
-              <FormRow><Label label="Priority" /><InputWrapper><Select name="priority" value={form.priority} onChange={handleInputChange} options={Object.values(Priority)} /></InputWrapper></FormRow>
+              <FormRow>
+                <Label label="Priority" />
+                <InputWrapper>
+                  <select
+                    name="priority"
+                    value={isPriorityManuallySet ? (form.priority || '') : 'AUTO'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'AUTO') {
+                        setIsPriorityManuallySet(false);
+                        const autoPriority = calculatePriorityFromDeadline(form.deadline);
+                        setForm(prev => ({ ...prev, priority: autoPriority }));
+                      } else {
+                        setIsPriorityManuallySet(true);
+                        setForm(prev => ({ ...prev, priority: val as Priority }));
+                      }
+                    }}
+                    className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white appearance-none cursor-pointer transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  >
+                    <option value="AUTO">Auto (based on deadline)</option>
+                    {Object.values(Priority).map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </InputWrapper>
+              </FormRow>
             </div>
           )}
 
@@ -766,12 +964,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <FormRow>
                 <Label label="Planned Apply Date" />
                 <InputWrapper error={errors.plannedApplyDate}>
-                  <DateInput 
-                    name="plannedApplyDate" 
-                    value={form.plannedApplyDate} 
-                    onChange={handleInputChange} 
-                    error={errors.plannedApplyDate} 
-                  />
+                  <DateInput name="plannedApplyDate" value={form.plannedApplyDate} onChange={handleInputChange} error={errors.plannedApplyDate} />
                 </InputWrapper>
               </FormRow>
 
@@ -787,54 +980,18 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </div>
                       )}
                       {checklist.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-neutral-100 hover:border-neutral-200 transition-all"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => toggleChecklistItem(item.id)}
-                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                              item.completed
-                                ? 'bg-success-500 border-success-500 text-white'
-                                : 'border-neutral-300 bg-white hover:border-success-300'
-                            }`}
-                          >
+                        <div key={item.id} className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-neutral-100 hover:border-neutral-200 transition-all">
+                          <button type="button" onClick={() => toggleChecklistItem(item.id)} className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${item.completed ? 'bg-success-500 border-success-500 text-white' : 'border-neutral-300 bg-white hover:border-success-300'}`}>
                             {item.completed && <CheckCircle2 size={14} />}
                           </button>
-                          <span
-                            className={`flex-1 text-sm ${
-                              item.completed ? 'line-through text-neutral-400' : 'text-neutral-700'
-                            }`}
-                          >
-                            {item.text}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => deleteChecklistItem(item.id)}
-                            className="text-neutral-400 hover:text-danger-500 transition-colors p-1"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <span className={`flex-1 text-sm ${item.completed ? 'line-through text-neutral-400' : 'text-neutral-700'}`}>{item.text}</span>
+                          <button type="button" onClick={() => deleteChecklistItem(item.id)} className="text-neutral-400 hover:text-danger-500 transition-colors p-1"><Trash2 size={15} /></button>
                         </div>
                       ))}
                     </div>
                     <div className="flex gap-2 p-3 border-t border-neutral-100 bg-neutral-50">
-                      <input
-                        type="text"
-                        value={newChecklistItem}
-                        onChange={(e) => setNewChecklistItem(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())}
-                        className="flex-1 border border-neutral-200 rounded-xl px-4 py-2 text-sm bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        placeholder="Add a task..."
-                      />
-                      <button
-                        type="button"
-                        onClick={addChecklistItem}
-                        className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1"
-                      >
-                        <Plus size={16} /> Add
-                      </button>
+                      <input type="text" value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())} className="flex-1 border border-neutral-200 rounded-xl px-4 py-2 text-sm bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500" placeholder="Add a task..." />
+                      <button type="button" onClick={addChecklistItem} className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1"><Plus size={16} /> Add</button>
                     </div>
                   </div>
                 </InputWrapper>
@@ -847,29 +1004,14 @@ const handleSubmit = async (e: React.FormEvent) => {
       {/* Action Buttons */}
       <div className="flex justify-between pt-4 border-t border-neutral-200 mt-4">
         {form.id && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition-colors"
-          >
-            <Trash2 size={16} />
-            Delete Job
+          <button type="button" onClick={handleDelete} className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition-colors">
+            <Trash2 size={16} /> Delete Job
           </button>
         )}
         <div className="flex gap-3 ml-auto">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 px-5 py-2.5 rounded-xl transition-all"
-          >
-            Cancel
-          </button>
+          <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 px-5 py-2.5 rounded-xl transition-all">Cancel</button>
           <form onSubmit={handleSubmit}>
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 px-6 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
-            >
+            <button type="submit" disabled={loading} className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 px-6 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50">
               {loading && <Loader2 size={16} className="animate-spin" />}
               <span>{loading ? 'Saving...' : 'Save Application'}</span>
             </button>
@@ -882,37 +1024,15 @@ const handleSubmit = async (e: React.FormEvent) => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-neutral-950/40">
           <div className="bg-white w-full max-w-2xl rounded-2xl border border-neutral-200 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b">
-              <div className="flex items-center gap-2">
-                <Sparkles size={20} className="text-success-500" />
-                <h3 className="font-bold text-lg text-neutral-900">Import from Job Posting</h3>
-              </div>
-              <button onClick={() => setIsImportModalOpen(false)} className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2"><Sparkles size={20} className="text-success-500" /><h3 className="font-bold text-lg text-neutral-900">Import from Job Posting</h3></div>
+              <button onClick={() => setIsImportModalOpen(false)} className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-neutral-600">Paste the job posting text. The system will extract position, company, description, requirements, and apply link.</p>
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                rows={8}
-                placeholder="Paste the full job posting here..."
-                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-              />
+              <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={8} placeholder="Paste the full job posting here..." className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
               <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsImportModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImport}
-                  disabled={importing || !importText.trim()}
-                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
-                >
+                <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 rounded-xl transition-colors">Cancel</button>
+                <button type="button" onClick={handleImport} disabled={importing || !importText.trim()} className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
                   {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                   <span>{importing ? 'Importing...' : 'Import & Fill'}</span>
                 </button>
@@ -922,14 +1042,8 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       )}
 
-      {/* Modal CLOSED (DeadlineModal) */}
-      <DeadlineModal
-        isOpen={showDeadlineModal}
-        onClose={() => setShowDeadlineModal(false)}
-        onConfirm={handleDeadlineConfirm}
-        positionName={form.position}
-        companyName={form.company}
-      />
+      {/* Modal CLOSED */}
+      <DeadlineModal isOpen={showDeadlineModal} onClose={() => setShowDeadlineModal(false)} onConfirm={handleDeadlineConfirm} positionName={form.position} companyName={form.company} />
 
       {/* Stage Transition Confirm Modal */}
       <StageTransitionConfirmModal
@@ -950,11 +1064,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       <StageDatesInputModal
         isOpen={stageDatesModal.isOpen}
         onClose={() => setStageDatesModal({ isOpen: false, targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false })}
-        onBack={() => {
-          // Tutup stageDatesModal dan buka stageConfirm lagi
-          setStageDatesModal(prev => ({ ...prev, isOpen: false }));
-          setStageConfirm(prev => ({ ...prev, isOpen: true }));
-        }}
+        onBack={() => { setStageDatesModal(prev => ({ ...prev, isOpen: false })); setStageConfirm(prev => ({ ...prev, isOpen: true })); }}
         onConfirm={handleStageDatesConfirm}
         jobPosition={form.position}
         jobCompany={form.company}
@@ -963,6 +1073,17 @@ const handleSubmit = async (e: React.FormEvent) => {
         existingDates={stageDatesModal.existingDates}
         isReopen={stageDatesModal.isReopen}
         currentDeadline={stageDatesModal.currentDeadline}
+      />
+
+      {/* Modal konfirmasi deadline kadaluarsa */}
+      <AlertModal
+        isOpen={expiredConfirmOpen}
+        onClose={() => setExpiredConfirmOpen(false)}
+        title="Deadline Lewat"
+        message={`Deadline (${form.deadline}) sudah lewat dari hari ini. Apakah Anda ingin menutup job ini (pindah ke CLOSED)?`}
+        confirmText="Ya, Tutup Job"
+        cancelText="Tidak, Batalkan"
+        onConfirm={handleExpiredConfirm}
       />
     </div>
   );

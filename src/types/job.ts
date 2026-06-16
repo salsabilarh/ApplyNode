@@ -1,10 +1,10 @@
-import { JobStatus, Priority, JobType } from '@prisma/client';
+import { JobStatus, Priority, JobType, DurationUnit, WorkMethod } from '@prisma/client';
 
 export interface Job {
   id: string;
   userId: string;
   position: string;
-  jobType: JobType;
+  jobType: JobType | null;
   company: string;
   platform: string;
   sourceLink: string | null;
@@ -12,9 +12,12 @@ export interface Job {
   description: string | null;
   requirement: string | null;
   duration: string | null;
-  deadline: string;
+  location: string | null;
+  workMethod: WorkMethod | null;
+  durationUnit: DurationUnit | null;
+  deadline: string | null; // ← nullable
   openingDate: string | null;
-  priority: Priority;
+  priority: Priority | null;
   status: JobStatus;
   plannedApplyDate: string | null;
   plannedApplyTime: string | null;

@@ -109,24 +109,47 @@ export default function PlannerClient() {
     }
   }, [fetchJobs]);
 
-  const handleConfirmReschedule = useCallback(async () => {
-    const { jobId, newDate } = confirmReschedule;
-    if (!jobId) return;
-    try {
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plannedApplyDate: newDate }),
-      });
-      if (!response.ok) throw new Error();
-      await fetchJobs();
-    } catch (error) {
-      setAlertModal({ isOpen: true, title: 'Failed', message: 'Could not reschedule.' });
-    } finally {
-      setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
-    }
-  }, [confirmReschedule, fetchJobs]);
+const handleConfirmReschedule = useCallback(async () => {
+  const { jobId, newDate } = confirmReschedule;
+  if (!jobId) return;
 
+  if (newDate) {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    if (newDate < todayStr) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Invalid Date',
+        message: 'You cannot schedule a job on a past date. Please choose today or a future date.',
+      });
+      setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
+      return;
+    }
+    const job = jobs.find(j => j.id === jobId);
+    if (job && job.deadline && newDate > job.deadline) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Date Exceeds Deadline',
+        message: `The selected date (${newDate}) is after the deadline (${job.deadline}).\nPlease choose a date on or before the deadline.`,
+      });
+      setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
+      return;
+    }
+  }
+
+  try {
+    const response = await fetch(`/api/jobs/${jobId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plannedApplyDate: newDate }),
+    });
+    if (!response.ok) throw new Error();
+    await fetchJobs();
+  } catch (error) {
+    setAlertModal({ isOpen: true, title: 'Failed', message: 'Could not reschedule.' });
+  } finally {
+    setConfirmReschedule({ isOpen: false, jobId: '', jobPosition: '', jobCompany: '', newDate: null });
+  }
+}, [confirmReschedule, jobs, fetchJobs]);
   const onDragEnd = useCallback(
     async (result: DropResult) => {
       const { source, destination, draggableId } = result;

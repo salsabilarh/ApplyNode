@@ -18,10 +18,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   });
   if (!job) notFound();
 
-  // Serialize all date fields to ISO strings for client component
 const serializedJob = {
   ...job,
-  deadline: job.deadline.toISOString(),
+  deadline: job.deadline?.toISOString() ?? null,
+  priority: job.priority ?? null,
   openingDate: job.openingDate?.toISOString() ?? null,
   plannedApplyDate: job.plannedApplyDate?.toISOString() ?? null,
   appliedDate: job.appliedDate?.toISOString() ?? null,

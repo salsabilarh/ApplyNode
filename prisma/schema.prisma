@@ -38,7 +38,7 @@ model Job {
   userId           String     
   user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   position         String
-  jobType          JobType    @default(FULL_TIME)
+  jobType          JobType?    @default(FULL_TIME)
   company          String
   platform         String
   sourceLink       String?
@@ -46,10 +46,12 @@ model Job {
   requirement      String?    @db.Text
   applyLink        String?
   duration         String?
-  deadline         DateTime
+  deadline         DateTime?
   openingDate      DateTime?
-  priority         Priority   @default(MEDIUM)
-  
+  priority         Priority?
+  location         String?
+  workMethod       WorkMethod?
+  durationUnit     DurationUnit?
   status           JobStatus  @default(BACKLOG) // Diarahkan ke enum baru
   
   plannedApplyDate DateTime?
@@ -87,4 +89,18 @@ enum JobStatus {
   MEDICAL_CHECK_UP
   OFFERING
   CLOSED
+}
+
+// Tambahkan enum baru
+enum WorkMethod {
+  WFH
+  WFO
+  HYBRID
+}
+
+enum DurationUnit {
+  DAYS
+  WEEKS
+  MONTHS
+  YEARS
 }

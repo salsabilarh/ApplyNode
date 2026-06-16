@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface ApplyDateModalProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ export default function ApplyDateModal({
 }: ApplyDateModalProps) {
   const [selectedDate, setSelectedDate] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const getTodayString = () => {
     const today = new Date();
@@ -32,15 +33,22 @@ export default function ApplyDateModal({
     if (isOpen) {
       setSelectedDate(getTodayString());
       setError('');
+      setIsLoading(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onConfirm(selectedDate);
-  };
+  // Ganti handleSubmit menjadi async dan await onConfirm
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  try {
+    await onConfirm(selectedDate);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
@@ -55,8 +63,8 @@ export default function ApplyDateModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors"
-            aria-label="Close"
+            disabled={isLoading}
+            className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -93,11 +101,9 @@ export default function ApplyDateModal({
                 type="date"
                 required
                 value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setError('');
-                }}
-                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition"
+                onChange={(e) => setSelectedDate(e.target.value)}
+                disabled={isLoading}
+                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition disabled:bg-neutral-100"
               />
             </div>
             <p className="text-[11px] text-neutral-500 mt-1.5">
@@ -111,17 +117,19 @@ export default function ApplyDateModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-xl transition shadow-sm disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2"
+            disabled={isLoading}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition active:scale-95 flex items-center gap-2 disabled:opacity-50"
           >
-            <CheckCircle2 size={16} />
-            Confirm & Move
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            <span>{isLoading ? 'Saving...' : 'Confirm & Move'}</span>
           </button>
         </div>
       </div>

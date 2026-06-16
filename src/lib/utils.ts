@@ -25,22 +25,6 @@ export function normalizeToUTCMidnight(date: Date): Date {
 }
 
 /**
- * Calculate days left until deadline (negative if expired).
- */
-export function getDaysLeft(deadline: Date, referenceDate: Date = new Date()): number {
-  const deadlineUTC = normalizeToUTCMidnight(deadline);
-  const referenceUTC = normalizeToUTCMidnight(referenceDate);
-  return Math.ceil((deadlineUTC.getTime() - referenceUTC.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-/**
- * Format date as "DD MMM" in Indonesian.
- */
-export function formatDateShort(date: Date): string {
-  return `${date.getUTCDate()} ${MONTH_NAMES_ID[date.getUTCMonth()]}`;
-}
-
-/**
  * Format date as YYYY-MM-DD for input[type="date"].
  */
 export function formatDateForInput(date: Date | string | null): string {
@@ -75,7 +59,7 @@ export const getDateFieldName = (status: string): string | null => {
 
 export function formatStageLabel(status: string): string {
   const map: Record<string, string> = {
-    BACKLOG: 'Backlog',
+    BACKLOG: 'To Apply',
     APPLYING: 'Applying',
     APPLIED: 'Applied',
     ADMIN_SCREENING: 'Admin Screening',
@@ -90,3 +74,92 @@ export function formatStageLabel(status: string): string {
   };
   return map[status] || status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
+
+export function formatWorkMethodLabel(workMethod: string | null | undefined): string {
+  if (!workMethod) return '-';
+  const map: Record<string, string> = {
+    WFH: 'WFH',
+    WFO: 'WFO',
+    HYBRID: 'Hybrid'
+  };
+  return map[workMethod] || workMethod.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function formatDurationUnitLabel(durationUnit: string | null | undefined): string {
+  if (!durationUnit) return '-';
+  const map: Record<string, string> = {
+    DAYS: 'Days',
+    WEEKS: 'Weeks',
+    MONTHS: 'Months',
+    YEARS: 'Years',
+  };
+  return map[durationUnit] || durationUnit.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function formatJobType(jobType: string | null | undefined): string {
+  if (!jobType) return '-';
+  const map: Record<string, string> = {
+    FULL_TIME: 'Full Time',
+    FREELANCE: 'Freelance',
+    PROJECT_BASED: 'Project Based',
+    INTERNSHIP: 'Internship',
+    BOOTCAMP: 'Bootcamp',
+    CONTRACT: 'Contract',
+    PART_TIME: 'Part Time',
+  };
+  return map[jobType] || jobType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function getDaysLeft(date: Date | string | null): number {
+  if (!date) return Infinity;
+  const target = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+export function formatDateShort(date: Date | string | null): string {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+export const getStagesAffected = (current: string, target: string) => {
+  const currentIdx = STATUS_ORDER.indexOf(current);
+  const targetIdx = STATUS_ORDER.indexOf(target);
+  const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
+  const stagesToUpdate: string[] = [];
+  const stagesToReset: string[] = [];
+
+  if (targetIdx > currentIdx) {
+    // Maju
+    if (targetIdx >= appliedIdx) {
+      for (let i = appliedIdx; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (getDateFieldName(stage)) stagesToUpdate.push(stage);
+      }
+    } else {
+      for (let i = currentIdx + 1; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (getDateFieldName(stage)) stagesToUpdate.push(stage);
+      }
+    }
+  } else {
+    // Mundur
+    for (let i = targetIdx + 1; i <= currentIdx; i++) {
+      const stage = STATUS_ORDER[i];
+      if (getDateFieldName(stage)) stagesToReset.push(stage);
+    }
+    if (targetIdx >= appliedIdx) {
+      for (let i = appliedIdx; i <= targetIdx; i++) {
+        const stage = STATUS_ORDER[i];
+        if (getDateFieldName(stage)) stagesToUpdate.push(stage);
+      }
+    } else {
+      if (getDateFieldName(target)) stagesToUpdate.push(target);
+    }
+  }
+  return { stagesToUpdate, stagesToReset };
+};

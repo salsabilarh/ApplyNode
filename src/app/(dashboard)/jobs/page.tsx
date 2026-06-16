@@ -1,4 +1,3 @@
-// app/(dashboard)/jobs/page.tsx
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { verifyJWT } from '@/lib/auth';
@@ -21,15 +20,18 @@ export default async function MasterJobsPage() {
 
   const jobs = rawJobs.map(job => ({
     id: job.id,
-    user_id: job.userId,
     position: job.position,
     company: job.company,
     platform: job.platform,
-    priority: job.priority,
-    status: job.status,
-    createdAt: job.createdAt.toISOString(),
-    deadline: job.deadline.toISOString(),
+    deadline: job.deadline?.toISOString() ?? '',
     openingDate: job.openingDate?.toISOString() ?? null,
+    priority: job.priority ?? 'MEDIUM',
+    status: job.status,
+    jobType: job.jobType,
+    location: job.location,
+    workMethod: job.workMethod,
+    duration: job.duration,
+    durationUnit: job.durationUnit,
   }));
 
   return (

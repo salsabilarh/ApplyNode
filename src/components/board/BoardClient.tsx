@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
@@ -15,6 +15,8 @@ import AlertModal from '@/components/ui/AlertModal';
 import StageDatesInputModal from '@/components/board/StageDatesInputModal';
 import StageTransitionConfirmModal from '@/components/board/StageTransitionConfirmModal';
 import PlannedDateModal from '@/components/board/PlannedDateModal';
+import ReopenJobModal from '@/components/board/ReopenJobModal';
+import SetDeadlineAndPlannedDateModal from '@/components/board/SetDeadlineAndPlannedDateModal';
 
 const RECRUITMENT_PHASES = [
   {
@@ -109,52 +111,42 @@ const getStagesAffected = (current: string, target: string) => {
   const stagesToUpdate: string[] = [];
   const stagesToReset: string[] = [];
 
-  // ================= MAJU =================
   if (targetIdx > currentIdx) {
     if (targetIdx >= appliedIdx) {
-      // Target di atas atau sama dengan APPLIED -> tampilkan semua stage dari APPLIED hingga target
       for (let i = appliedIdx; i <= targetIdx; i++) {
         const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+        if (stage !== 'BACKLOG' && getDateFieldName(stage)) {
           stagesToUpdate.push(stage);
         }
       }
     } else {
-      // Target di bawah APPLIED (BACKLOG/APPLYING) -> tidak ada date field
       for (let i = currentIdx + 1; i <= targetIdx; i++) {
         const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+        if (stage !== 'BACKLOG' && getDateFieldName(stage)) {
           stagesToUpdate.push(stage);
         }
       }
     }
-  } 
-  // ================= MUNDUR =================
-  else {
-    // Reset semua stage setelah target hingga current (yang memiliki date field)
+  } else {
     for (let i = targetIdx + 1; i <= currentIdx; i++) {
       const stage = STATUS_ORDER[i];
-      if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+      if (stage !== 'BACKLOG' && getDateFieldName(stage)) {
         stagesToReset.push(stage);
       }
     }
-
-    // Tampilkan stage dari APPLIED hingga target (jika target >= APPLIED)
     if (targetIdx >= appliedIdx) {
       for (let i = appliedIdx; i <= targetIdx; i++) {
         const stage = STATUS_ORDER[i];
-        if (stage !== 'BACKLOG' && stage !== 'CLOSED' && getDateFieldName(stage)) {
+        if (stage !== 'BACKLOG' && getDateFieldName(stage)) {
           stagesToUpdate.push(stage);
         }
       }
     } else {
-      // Target di bawah APPLIED (BACKLOG/APPLYING) -> hanya target stage jika punya date field
       if (target !== 'BACKLOG' && target !== 'APPLYING' && getDateFieldName(target)) {
         stagesToUpdate.push(target);
       }
     }
   }
-
   return { stagesToUpdate, stagesToReset };
 };
 
@@ -162,17 +154,12 @@ const getReopenStages = (targetStatus: string) => {
   const targetIdx = STATUS_ORDER.indexOf(targetStatus);
   const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
   const stagesToUpdate: string[] = [];
-
-  // APPLIED wajib diisi jika target >= APPLIED
-  if (targetIdx >= appliedIdx && getDateFieldName('APPLIED')) {
-    stagesToUpdate.push('APPLIED');
+  for (let i = appliedIdx; i <= targetIdx; i++) {
+    const stage = STATUS_ORDER[i];
+    if (stage !== 'BACKLOG' && stage !== 'APPLYING' && getDateFieldName(stage)) {
+      stagesToUpdate.push(stage);
+    }
   }
-  // Target stage wajib diisi jika memiliki date field
-  if (getDateFieldName(targetStatus)) {
-    stagesToUpdate.push(targetStatus);
-  }
-
-  // Reset semua stage setelah target hingga CLOSED yang memiliki date field
   const stagesToReset: string[] = [];
   for (let i = targetIdx + 1; i < STATUS_ORDER.length; i++) {
     const stage = STATUS_ORDER[i];
@@ -182,12 +169,13 @@ const getReopenStages = (targetStatus: string) => {
   }
   return { stagesToUpdate, stagesToReset };
 };
+
 export default function BoardClient() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     jobId: string;
@@ -201,6 +189,24 @@ export default function BoardClient() {
     message: string;
   }>({ isOpen: false, title: '', message: '' });
 
+  const [pastDeadlineConfirm, setPastDeadlineConfirm] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    originalTargetStatus: string;
+    deadline: string;
+    plannedDate: string;
+    position: string;
+    company: string;
+  }>({
+    isOpen: false,
+    jobId: '',
+    originalTargetStatus: '',
+    deadline: '',
+    plannedDate: '',
+    position: '',
+    company: '',
+  });
+
   const [stageConfirm, setStageConfirm] = useState<{
     isOpen: boolean;
     jobId: string;
@@ -209,8 +215,8 @@ export default function BoardClient() {
     stagesToUpdate: string[];
     stagesToReset: string[];
     isForward: boolean;
-    isReopen: boolean;       // baru
-    currentDeadline?: string; // baru
+    isReopen: boolean;
+    currentDeadline?: string | null;
   }>({
     isOpen: false,
     jobId: '',
@@ -222,15 +228,36 @@ export default function BoardClient() {
     isReopen: false,
   });
 
+  const activeJob = useMemo(() => {
+    return jobs.find(j => j.id === stageConfirm.jobId);
+  }, [jobs, stageConfirm.jobId]);
+
+  const [reopenModal, setReopenModal] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    targetStatus: Job['status'];
+    position: string;
+    company: string;
+    currentDeadline: string;
+  }>({
+    isOpen: false,
+    jobId: '',
+    targetStatus: 'BACKLOG',
+    position: '',
+    company: '',
+    currentDeadline: '',
+  });
+
   const [stageDatesModal, setStageDatesModal] = useState<{
     isOpen: boolean;
     jobId: string;
     targetStatus: string;
-    stagesToUpdate: string[];        // yang dipilih user
-    allStagesToUpdate: string[];     // semua stage asli (untuk reset)
+    stagesToUpdate: string[];
+    allStagesToUpdate: string[];
     existingDates: Record<string, string | null>;
     isReopen: boolean;
-    currentDeadline?: string;
+    currentDeadline?: string | null;
+    showDeadline?: boolean;
   }>({
     isOpen: false,
     jobId: '',
@@ -239,21 +266,42 @@ export default function BoardClient() {
     allStagesToUpdate: [],
     existingDates: {},
     isReopen: false,
+    showDeadline: false,
   });
 
-const [plannedDateModal, setPlannedDateModal] = useState<{
-  isOpen: boolean;
-  jobId: string;
-  targetStatus: string;
-  position: string;
-  company: string;
-}>({
-  isOpen: false,
-  jobId: '',
-  targetStatus: '',
-  position: '',
-  company: '',
-});
+  const [plannedDateModal, setPlannedDateModal] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    targetStatus: string;
+    position: string;
+    company: string;
+    deadline?: string;
+  }>({
+    isOpen: false,
+    jobId: '',
+    targetStatus: '',
+    position: '',
+    company: '',
+    deadline: undefined,
+  });
+
+  const [deadlinePlannedModal, setDeadlinePlannedModal] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    targetStatus: string;
+    position: string;
+    company: string;
+    currentDeadline?: string;
+    currentPlannedDate?: string | null;
+  }>({
+    isOpen: false,
+    jobId: '',
+    targetStatus: '',
+    position: '',
+    company: '',
+    currentDeadline: undefined,
+    currentPlannedDate: null,
+  });
 
   const [tempResetList, setTempResetList] = useState<string[]>([]);
 
@@ -281,57 +329,40 @@ const [plannedDateModal, setPlannedDateModal] = useState<{
     id: string, 
     payload: { status?: string; deadline?: string; plannedApplyDate?: string | null }
   ) => {
-    const currentJob = jobs.find(j => j.id === id);
-    let finalPayload: { status?: string; deadline?: string; plannedApplyDate?: string | null } = { ...payload };
-
-    if (currentJob && currentJob.status === 'CLOSED' && payload.deadline && !payload.status) {
-      const newDeadlineDate = new Date(payload.deadline);
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
-      newDeadlineDate.setHours(23, 59, 59, 999);
-      if (newDeadlineDate >= today) {
-        finalPayload.status = 'BACKLOG';
-      }
-    }
-
-    setJobs(prev =>
-      prev.map(job =>
-        job.id === id
-          ? {
-              ...job,
-              status: (finalPayload.status as Job['status']) || job.status,
-              deadline: finalPayload.deadline || job.deadline,
-              plannedApplyDate: finalPayload.plannedApplyDate !== undefined ? finalPayload.plannedApplyDate : job.plannedApplyDate
-            }
-          : job
-      )
-    );
-
+    setJobs(prev => prev.map(job => 
+      job.id === id ? { ...job, ...payload, status: payload.status as Job['status'] || job.status } : job
+    ));
     try {
       const res = await fetch(`/api/jobs/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalPayload),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to update status');
-      }
+      if (!res.ok) throw new Error('Update failed');
       router.refresh();
     } catch (err: any) {
-      setErrorModal({
-        isOpen: true,
-        title: 'Update Failed',
-        message: err.message || 'Failed to update data. Changes have been reverted.',
-      });
       await fetchJobs();
     }
-  }, [fetchJobs, router, jobs]);
+  }, [fetchJobs, router]);
+
+  const handleReopenConfirm = useCallback(async (newDeadline: string, appliedDate?: string | null) => {
+    if (!reopenModal.jobId) return;
+    const { jobId, targetStatus } = reopenModal;
+    const payload: any = { status: targetStatus, deadline: newDeadline };
+    if (appliedDate) payload.appliedDate = appliedDate;
+    const targetIdx = STATUS_ORDER.indexOf(targetStatus);
+    for (let i = targetIdx + 1; i < STATUS_ORDER.length; i++) {
+      const stage = STATUS_ORDER[i];
+      const field = getDateFieldName(stage);
+      if (field) payload[field] = null;
+    }
+    await executeUpdateStatus(jobId, payload);
+    setReopenModal({ isOpen: false, jobId: '', targetStatus: 'BACKLOG', position: '', company: '', currentDeadline: '' });
+  }, [reopenModal, executeUpdateStatus]);
 
   const handleStatusChange = useCallback(async (jobId: string, nextStatus: Job['status']) => {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
-
     if (nextStatus === 'CLOSED') {
       setModalConfig({ isOpen: true, jobId, position: job.position, company: job.company });
       return;
@@ -340,88 +371,107 @@ const [plannedDateModal, setPlannedDateModal] = useState<{
   }, [jobs, executeUpdateStatus]);
 
   const handlePlannedDateConfirm = useCallback(async (plannedDate: string | null) => {
-  if (!plannedDateModal.jobId) return;
-  await executeUpdateStatus(plannedDateModal.jobId, {
-    status: plannedDateModal.targetStatus as Job['status'],
-    plannedApplyDate: plannedDate || undefined,
-  });
-  setPlannedDateModal({ isOpen: false, jobId: '', targetStatus: '', position: '', company: '' });
-}, [plannedDateModal, executeUpdateStatus]);
+    if (!plannedDateModal.jobId) return;
+    await executeUpdateStatus(plannedDateModal.jobId, {
+      status: plannedDateModal.targetStatus as Job['status'],
+      plannedApplyDate: plannedDate || undefined,
+    });
+    setPlannedDateModal({ isOpen: false, jobId: '', targetStatus: '', position: '', company: '' });
+  }, [plannedDateModal, executeUpdateStatus]);
 
-// Handler konfirmasi stage
-const handleStageConfirm = useCallback((selectedStages: string[]) => {
-  const { jobId, targetStatus, stagesToUpdate, stagesToReset, isReopen, currentDeadline } = stageConfirm;
-  const job = jobs.find(j => j.id === jobId);
-  if (!job) return;
+  const handleBackToStageConfirm = useCallback(() => {
+    setStageDatesModal(prev => ({ ...prev, isOpen: false }));
+    setStageConfirm(prev => ({ ...prev, isOpen: true }));
+  }, []);
 
-  const existingDates: Record<string, string | null> = {};
-  selectedStages.forEach(stage => {
-    const field = getDateFieldName(stage);
-    if (field) existingDates[stage] = (job as any)[field] || null;
-  });
+  const handleStageConfirm = useCallback((selectedStages: string[]) => {
+    const { jobId, targetStatus, stagesToUpdate, stagesToReset, isReopen, currentDeadline } = stageConfirm;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+    const existingDates: Record<string, string | null> = {};
+    selectedStages.forEach(stage => {
+      const field = getDateFieldName(stage);
+      if (field) existingDates[stage] = (job as any)[field] || null;
+    });
+    setStageConfirm(prev => ({ ...prev, isOpen: false }));
+    setTempResetList(stagesToReset);
+    setStageDatesModal({
+      isOpen: true,
+      jobId: job.id,
+      targetStatus,
+      stagesToUpdate: selectedStages,
+      allStagesToUpdate: stagesToUpdate,
+      existingDates,
+      isReopen: isReopen || false,
+      currentDeadline: currentDeadline ?? null,
+      showDeadline: targetStatus === 'CLOSED',
+    });
+  }, [stageConfirm, jobs]);
 
-  setStageConfirm(prev => ({ ...prev, isOpen: false }));
-  setTempResetList(stagesToReset);
-  setStageDatesModal({
-    isOpen: true,
-    jobId,
-    targetStatus,
-    stagesToUpdate: selectedStages,
-    allStagesToUpdate: stagesToUpdate, // simpan original
-    existingDates,
-    isReopen: isReopen || false,
-    currentDeadline,
-  });
-}, [stageConfirm, jobs]);
-const getReopenStages = (targetStatus: string) => {
-  const targetIdx = STATUS_ORDER.indexOf(targetStatus);
-  const stagesToUpdate: string[] = [];
-  
-  // APPLIED wajib diisi jika target bukan APPLIED
-  if (targetStatus !== 'APPLIED' && getDateFieldName('APPLIED')) {
-    stagesToUpdate.push('APPLIED');
-  }
-  // Target stage wajib diisi jika memiliki date field
-  if (getDateFieldName(targetStatus)) {
-    stagesToUpdate.push(targetStatus);
-  }
+  const handleConfirmCloseFromPastDeadline = useCallback(() => {
+    const { jobId, originalTargetStatus, deadline, plannedDate, position, company } = pastDeadlineConfirm;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+    const { stagesToUpdate, stagesToReset } = getStagesAffected(job.status, 'CLOSED');
+    setStageConfirm({
+      isOpen: true,
+      jobId,
+      currentStatus: job.status,
+      targetStatus: 'CLOSED',
+      stagesToUpdate,
+      stagesToReset,
+      isForward: true,
+      isReopen: false,
+      currentDeadline: deadline,
+    });
+    setPastDeadlineConfirm({
+      isOpen: false,
+      jobId: '',
+      originalTargetStatus: '',
+      deadline: '',
+      plannedDate: '',
+      position: '',
+      company: '',
+    });
+  }, [pastDeadlineConfirm, jobs]);
 
-  // Reset semua stage setelah target hingga CLOSED yang memiliki date field
-  const stagesToReset: string[] = [];
-  for (let i = targetIdx + 1; i < STATUS_ORDER.length; i++) {
-    const stage = STATUS_ORDER[i];
-    if (stage !== 'BACKLOG' && stage !== 'APPLYING' && getDateFieldName(stage)) {
-      stagesToReset.push(stage);
+  const handleCancelPastDeadline = useCallback(() => {
+    setPastDeadlineConfirm({
+      isOpen: false,
+      jobId: '',
+      originalTargetStatus: '',
+      deadline: '',
+      plannedDate: '',
+      position: '',
+      company: '',
+    });
+  }, []);
+
+  const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>, deadline?: string) => {
+    const { jobId, targetStatus, stagesToUpdate, allStagesToUpdate, isReopen, showDeadline } = stageDatesModal;
+    const stagesToResetOriginal = tempResetList;
+    const unselectedStages = allStagesToUpdate.filter(s => !stagesToUpdate.includes(s));
+    const allResetStages = [...stagesToResetOriginal, ...unselectedStages];
+    const payload: any = { status: targetStatus };
+    for (const [stage, date] of Object.entries(dates)) {
+      const field = getDateFieldName(stage);
+      if (field && date) payload[field] = new Date(date);
     }
-  }
-  return { stagesToUpdate, stagesToReset };
-};
+    for (const stage of allResetStages) {
+      const field = getDateFieldName(stage);
+      if (field) payload[field] = null;
+    }
+    if (isReopen && deadline) {
+      payload.deadline = deadline;
+      payload.plannedApplyDate = null;
+    } else if (showDeadline && deadline) {
+      payload.deadline = deadline;
+    }
+    await executeUpdateStatus(jobId, payload);
+    setStageDatesModal({ isOpen: false, jobId: '', targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false, showDeadline: false });
+    setTempResetList([]);
+  }, [stageDatesModal, tempResetList, executeUpdateStatus]);
 
-const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>, deadline?: string) => {
-  const { jobId, targetStatus, stagesToUpdate, allStagesToUpdate, isReopen } = stageDatesModal;
-  const stagesToResetOriginal = tempResetList;
-  
-  // Stage yang ada di allStagesToUpdate tapi tidak dipilih -> harus direset
-  const unselectedStages = allStagesToUpdate.filter(s => !stagesToUpdate.includes(s));
-  const allResetStages = [...stagesToResetOriginal, ...unselectedStages];
-
-  const payload: any = { status: targetStatus };
-  // Set tanggal untuk yang dipilih
-  for (const [stage, date] of Object.entries(dates)) {
-    const field = getDateFieldName(stage);
-    if (field && date) payload[field] = new Date(date);
-  }
-  // Reset untuk semua resetStages
-  for (const stage of allResetStages) {
-    const field = getDateFieldName(stage);
-    if (field) payload[field] = null;
-  }
-  if (isReopen && deadline) payload.deadline = deadline;
-
-  await executeUpdateStatus(jobId, payload);
-  setStageDatesModal({ isOpen: false, jobId: '', targetStatus: '', stagesToUpdate: [], allStagesToUpdate: [], existingDates: {}, isReopen: false });
-  setTempResetList([]);
-}, [stageDatesModal, tempResetList, executeUpdateStatus]);
   const handleConfirmClosed = useCallback(async (finalDeadlineDate: string) => {
     if (!modalConfig) return;
     const { jobId } = modalConfig;
@@ -431,28 +481,42 @@ const handleStageDatesConfirm = useCallback(async (dates: Record<string, string>
 
   const handleDragEnd = useCallback(async (result: DropResult) => {
     const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
+    if (!destination || destination.droppableId === source.droppableId) return;
     const job = jobs.find(j => j.id === draggableId);
     if (!job) return;
+    const targetStatus = destination.droppableId as Job['status'];
+    const sourceStatus = job.status;
+    if (targetStatus === sourceStatus) return;
 
-const targetStatus = destination.droppableId as Job['status'];
-  const sourceStatus = job.status;
+    if (targetStatus === 'CLOSED') {
+      const { stagesToUpdate, stagesToReset } = getStagesAffected(sourceStatus, 'CLOSED');
+      setStageConfirm({
+        isOpen: true,
+        jobId: job.id,
+        currentStatus: sourceStatus,
+        targetStatus: 'CLOSED',
+        stagesToUpdate,
+        stagesToReset,
+        isForward: true,
+        isReopen: false,
+        currentDeadline: job.deadline,
+      });
+      return;
+    }
 
-if (targetStatus === sourceStatus) return;
-
-  // Kasus pindah ke CLOSED
-  if (targetStatus === 'CLOSED') {
-    setModalConfig({ isOpen: true, jobId: draggableId, position: job.position, company: job.company });
-    return;
-  }
-
-  // Kasus dari CLOSED
-  if (sourceStatus === 'CLOSED') {
-    const targetIdx = STATUS_ORDER.indexOf(targetStatus);
-    const appliedIdx = STATUS_ORDER.indexOf('APPLIED');
-    if (targetIdx >= appliedIdx) {
+    if (sourceStatus === 'CLOSED') {
+      if (targetStatus === 'BACKLOG' || targetStatus === 'APPLYING') {
+        setDeadlinePlannedModal({
+          isOpen: true,
+          jobId: job.id,
+          targetStatus,
+          position: job.position,
+          company: job.company,
+          currentDeadline: job.deadline || undefined,
+          currentPlannedDate: job.plannedApplyDate,
+        });
+        return;
+      }
       const { stagesToUpdate, stagesToReset } = getReopenStages(targetStatus);
       setStageConfirm({
         isOpen: true,
@@ -461,48 +525,80 @@ if (targetStatus === sourceStatus) return;
         targetStatus,
         stagesToUpdate,
         stagesToReset,
-        isForward: false,
+        isForward: true,
         isReopen: true,
         currentDeadline: job.deadline,
       });
-    } else {
-      setPlannedDateModal({
+      return;
+    }
+
+    if (targetStatus === 'BACKLOG' || targetStatus === 'APPLYING') {
+      setDeadlinePlannedModal({
         isOpen: true,
         jobId: job.id,
         targetStatus,
         position: job.position,
         company: job.company,
+        currentDeadline: job.deadline || undefined,
+        currentPlannedDate: job.plannedApplyDate,
       });
+      return;
     }
-    return;
-  }
 
-  // WAJIB planned date untuk BACKLOG/APPLYING
-  if (targetStatus === 'BACKLOG' || targetStatus === 'APPLYING') {
-    setPlannedDateModal({
+    const { stagesToUpdate, stagesToReset } = getStagesAffected(sourceStatus, targetStatus);
+    const isForward = STATUS_ORDER.indexOf(targetStatus) > STATUS_ORDER.indexOf(sourceStatus);
+    setStageConfirm({
       isOpen: true,
       jobId: job.id,
+      currentStatus: sourceStatus,
       targetStatus,
-      position: job.position,
-      company: job.company,
+      stagesToUpdate,
+      stagesToReset,
+      isForward,
+      isReopen: false,
     });
-    return;
-  }
+  }, [jobs, executeUpdateStatus]);
 
-  // Transisi biasa
-  const { stagesToUpdate, stagesToReset } = getStagesAffected(sourceStatus, targetStatus);
-  const isForward = STATUS_ORDER.indexOf(targetStatus) > STATUS_ORDER.indexOf(sourceStatus);
-  setStageConfirm({
-    isOpen: true,
-    jobId: job.id,
-    currentStatus: sourceStatus,
-    targetStatus,
-    stagesToUpdate,
-    stagesToReset,
-    isForward,
-    isReopen: false,
-  });
-}, [jobs, executeUpdateStatus]);
+  const handleDeadlinePlannedConfirm = useCallback(async (deadline: string, plannedDate: string) => {
+    if (!deadlinePlannedModal.jobId) return;
+    const { jobId, targetStatus, position, company } = deadlinePlannedModal;
+    const today = new Date().toISOString().split('T')[0];
+    if (deadline < today) {
+      setPastDeadlineConfirm({
+        isOpen: true,
+        jobId,
+        originalTargetStatus: targetStatus,
+        deadline,
+        plannedDate,
+        position,
+        company,
+      });
+      setDeadlinePlannedModal({
+        isOpen: false,
+        jobId: '',
+        targetStatus: '',
+        position: '',
+        company: '',
+        currentDeadline: undefined,
+        currentPlannedDate: null,
+      });
+      return;
+    }
+    await executeUpdateStatus(jobId, {
+      status: targetStatus as Job['status'],
+      deadline,
+      plannedApplyDate: plannedDate,
+    });
+    setDeadlinePlannedModal({
+      isOpen: false,
+      jobId: '',
+      targetStatus: '',
+      position: '',
+      company: '',
+      currentDeadline: undefined,
+      currentPlannedDate: null,
+    });
+  }, [deadlinePlannedModal, executeUpdateStatus]);
 
   const totalJobs = jobs.length;
   const appliedCount = jobs.filter(j => ACTIVE_APPLY_STATUSES.includes(j.status)).length;
@@ -533,7 +629,6 @@ if (targetStatus === sourceStatus) return;
 
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
-      {/* Header Stats */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm">
         <div>
           <h1 className="text-xl font-bold text-neutral-900 flex items-center gap-2 tracking-tight">
@@ -569,7 +664,6 @@ if (targetStatus === sourceStatus) return;
         </Link>
       </div>
 
-      {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
           {RECRUITMENT_PHASES.map(phase => {
@@ -586,7 +680,6 @@ if (targetStatus === sourceStatus) return;
                   </div>
                   <p className="text-[11px] opacity-80 leading-relaxed">{phase.description}</p>
                 </div>
-                
                 <div className="p-4 space-y-5">
                   {phase.subColumns.map(col => {
                     const columnJobs = jobs.filter(job => job.status === col.id);
@@ -606,13 +699,23 @@ if (targetStatus === sourceStatus) return;
               </div>
             );
           })}
+          <SetDeadlineAndPlannedDateModal
+            isOpen={deadlinePlannedModal.isOpen}
+            onClose={() => setDeadlinePlannedModal(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={handleDeadlinePlannedConfirm}
+            positionName={deadlinePlannedModal.position}
+            companyName={deadlinePlannedModal.company}
+            targetStatus={deadlinePlannedModal.targetStatus}
+            currentDeadline={deadlinePlannedModal.currentDeadline}
+            currentPlannedDate={deadlinePlannedModal.currentPlannedDate}
+          />
         </div>
       </DragDropContext>
 
-      {/* Modal untuk menutup job */}
       {modalConfig && (
         <DeadlineModal
           isOpen={modalConfig.isOpen}
+          mode="close"
           positionName={modalConfig.position}
           companyName={modalConfig.company}
           onClose={() => setModalConfig(null)}
@@ -620,14 +723,23 @@ if (targetStatus === sourceStatus) return;
         />
       )}
 
-      {/* Error alert modal */}
+      <ReopenJobModal
+        isOpen={reopenModal.isOpen}
+        onClose={() => setReopenModal({ isOpen: false, jobId: '', targetStatus: 'BACKLOG', position: '', company: '', currentDeadline: '' })}
+        onConfirm={handleReopenConfirm}
+        positionName={reopenModal.position}
+        companyName={reopenModal.company}
+        currentDeadline={reopenModal.currentDeadline}
+        targetStatus={reopenModal.targetStatus}
+      />
+
       <AlertModal
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal({ isOpen: false, title: '', message: '' })}
         title={errorModal.title}
         message={errorModal.message}
       />
-      {/* Modal PlannedDateModal */}
+
       <PlannedDateModal
         isOpen={plannedDateModal.isOpen}
         onClose={() => setPlannedDateModal({ isOpen: false, jobId: '', targetStatus: '', position: '', company: '' })}
@@ -637,47 +749,43 @@ if (targetStatus === sourceStatus) return;
         targetStatus={plannedDateModal.targetStatus}
       />
 
-    {/* MODAL STAGE TRANSITION CONFIRM (termasuk reopen) */}
-    <StageTransitionConfirmModal
-      isOpen={stageConfirm.isOpen}
-      onClose={() => setStageConfirm(prev => ({ ...prev, isOpen: false }))}
-      onConfirm={handleStageConfirm}   // hanya satu
-      jobPosition={stageConfirm.jobId ? jobs.find(j => j.id === stageConfirm.jobId)?.position || '' : ''}
-      jobCompany={stageConfirm.jobId ? jobs.find(j => j.id === stageConfirm.jobId)?.company || '' : ''}
-      currentStatus={stageConfirm.currentStatus}
-      targetStatus={stageConfirm.targetStatus}
-      stagesToUpdate={stageConfirm.stagesToUpdate}
-      stagesToReset={stageConfirm.stagesToReset}
-      isForward={stageConfirm.isForward}
-  customTitle={stageConfirm.isReopen ? "Reopen Job Application" : undefined}
-    />
-    
-{/* MODAL STAGE DATES INPUT (dengan deadline untuk reopen) */}
-<StageDatesInputModal
-  isOpen={stageDatesModal.isOpen}
-  onClose={() => setStageDatesModal({
-    isOpen: false,
-    jobId: '',
-    targetStatus: '',
-    stagesToUpdate: [],
-    allStagesToUpdate: [],
-    existingDates: {},
-    isReopen: false
-  })}
-  onBack={() => {
-    // Tutup stageDatesModal dan buka stageConfirm lagi
-    setStageDatesModal(prev => ({ ...prev, isOpen: false }));
-    setStageConfirm(prev => ({ ...prev, isOpen: true }));
-  }}
-  onConfirm={handleStageDatesConfirm}
-  jobPosition={stageDatesModal.jobId ? jobs.find(j => j.id === stageDatesModal.jobId)?.position || '' : ''}
-  jobCompany={stageDatesModal.jobId ? jobs.find(j => j.id === stageDatesModal.jobId)?.company || '' : ''}
-  targetStatus={stageDatesModal.targetStatus}
-  stagesToUpdate={stageDatesModal.stagesToUpdate}
-  existingDates={stageDatesModal.existingDates}
-  isReopen={stageDatesModal.isReopen}
-  currentDeadline={stageDatesModal.currentDeadline}
-/>
-  </div>
-);
+      <StageTransitionConfirmModal
+        isOpen={stageConfirm.isOpen}
+        onClose={() => setStageConfirm(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleStageConfirm}
+        jobPosition={activeJob?.position || ''}
+        jobCompany={activeJob?.company || ''}
+        currentStatus={stageConfirm.currentStatus}
+        targetStatus={stageConfirm.targetStatus}
+        stagesToUpdate={stageConfirm.stagesToUpdate}
+        stagesToReset={stageConfirm.stagesToReset}
+        isForward={stageConfirm.isForward}
+        customTitle={stageConfirm.isReopen ? "Reopen Job Application" : undefined}
+      />
+      
+      <StageDatesInputModal
+        isOpen={stageDatesModal.isOpen}
+        onClose={() => setStageDatesModal({
+          isOpen: false,
+          jobId: '',
+          targetStatus: '',
+          stagesToUpdate: [],
+          allStagesToUpdate: [],
+          existingDates: {},
+          isReopen: false,
+          showDeadline: false,
+        })}
+        onBack={handleBackToStageConfirm}
+        onConfirm={handleStageDatesConfirm}
+        jobPosition={stageDatesModal.jobId ? jobs.find(j => j.id === stageDatesModal.jobId)?.position || '' : ''}
+        jobCompany={stageDatesModal.jobId ? jobs.find(j => j.id === stageDatesModal.jobId)?.company || '' : ''}
+        targetStatus={stageDatesModal.targetStatus}
+        stagesToUpdate={stageDatesModal.stagesToUpdate}
+        existingDates={stageDatesModal.existingDates}
+        isReopen={stageDatesModal.isReopen}
+        currentDeadline={stageDatesModal.currentDeadline ?? undefined}
+        showDeadline={stageDatesModal.showDeadline}
+      />
+    </div>
+  );
 }
