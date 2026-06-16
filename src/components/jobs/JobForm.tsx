@@ -6,7 +6,7 @@ import { JobType, Priority, JobStatus, DurationUnit, WorkMethod } from '@prisma/
 import { 
   ArrowLeft, Loader2, Briefcase, Calendar, 
   FileText, AlertCircle, Trash2, Plus, CheckCircle2, ExternalLink,
-  Upload, X, Sparkles
+  Upload, X, Sparkles, FileJson
 } from 'lucide-react';
 import { useModal } from '@/context/ModalContext';
 import AlertModal from '@/components/ui/AlertModal';
@@ -67,7 +67,7 @@ const emptyJob: JobFormData = {
   duration: '',
   priority: null,
   status: 'BACKLOG',
-    location: null,
+  location: null,
   workMethod: null,
   durationUnit: 'MONTHS',
   applyNotes: '[]',
@@ -172,9 +172,7 @@ function isValidUrl(string: string): boolean {
 
 // ========== REUSABLE FORM COMPONENTS ==========
 const FormRow = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 items-start ${className}`}>
-    {children}
-  </div>
+  <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 items-start ${className}`}>{children}</div>
 );
 
 const Label = ({ label, required }: { label: string; required?: boolean }) => (
@@ -338,6 +336,7 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
 
   // Checklist
   const [checklist, setChecklist] = useState<NoteItem[]>(() => {
@@ -450,7 +449,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
       return;
     }
 
-    // ✅ Tangani workMethod, durationUnit, location
     if (name === 'workMethod' || name === 'durationUnit' || name === 'location') {
       setForm(prev => ({ ...prev, [name]: value === '' ? null : value }));
       return;
@@ -580,7 +578,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ Validasi Position dan Company
     if (!form.position.trim()) {
       setErrors(prev => ({ ...prev, position: 'Position is required.' }));
       setActiveTab(0);
@@ -591,11 +588,11 @@ export default function JobForm({ initialData }: { initialData?: any }) {
       setActiveTab(0);
       return;
     }
-if (!form.platform?.trim()) {
-  setErrors(prev => ({ ...prev, platform: 'Platform is required.' }));
-  setActiveTab(0);
-  return;
-}
+    if (!form.platform?.trim()) {
+      setErrors(prev => ({ ...prev, platform: 'Platform is required.' }));
+      setActiveTab(0);
+      return;
+    }
     if (!validateDates(form.deadline, form.plannedApplyDate, form.openingDate, form.appliedDate)) return;
     if (!validateAppliedDateRequired()) {
       setActiveTab(1);
@@ -687,6 +684,21 @@ if (!form.platform?.trim()) {
     });
   };
 
+  const getTemplateText = () => `Position: [Job Title]
+Company: [Company Name]
+Job Type: [FULL_TIME|PART_TIME|CONTRACT|INTERNSHIP|FREELANCE|PROJECT_BASED|BOOTCAMP]
+Work Method: [REMOTE|HYBRID|ONSITE|OFFICE|FLEXIBLE]
+Location: [City/Country]
+Duration: [number]
+Duration Unit: [MONTHS|YEARS|WEEKS|DAYS]
+Platform: [LinkedIn/Jobstreet/Indeed/etc.]
+Apply Link: [URL/email/phone]
+Source Link: [URL]
+Description: [Paste job description here]
+Requirement: [List qualifications]
+Deadline: [YYYY-MM-DD]
+Opening Date: [YYYY-MM-DD]`;
+
   const TabHeader = () => (
     <div className="flex border-b border-neutral-200 bg-neutral-50/40 rounded-t-2xl overflow-x-auto">
       {tabs.map((tab, idx) => (
@@ -772,7 +784,6 @@ if (!form.platform?.trim()) {
                   <TextInput name="company" value={form.company} onChange={handleInputChange} required placeholder="e.g., PT Tech Solutions" />
                 </InputWrapper>
               </FormRow>
-              {/* Location */}
               <FormRow>
                 <Label label="Office Location" />
                 <InputWrapper>
@@ -802,7 +813,6 @@ if (!form.platform?.trim()) {
                   </select>
                 </InputWrapper>
               </FormRow>
-              {/* Work Method */}
               <FormRow>
                 <Label label="Work Method" />
                 <InputWrapper>
@@ -814,13 +824,11 @@ if (!form.platform?.trim()) {
                   >
                     <option value="">Please select</option>
                     {Object.values(WorkMethod).map(method => (
-                <option key={method} value={method}>{formatWorkMethodLabel(method)}</option>
-              ))}
-
+                      <option key={method} value={method}>{formatWorkMethodLabel(method)}</option>
+                    ))}
                   </select>
                 </InputWrapper>
               </FormRow>
-              {/* Duration */}
               <FormRow className="items-center">
                 <Label label="Duration" />
                 <div className="sm:col-span-2 grid grid-cols-5 gap-2">
@@ -842,8 +850,8 @@ if (!form.platform?.trim()) {
                     >
                       <option value="">Please select</option>
                       {Object.values(DurationUnit).map(unit => (
-                <option key={unit} value={unit}>{formatDurationUnitLabel(unit)}</option>
-              ))}
+                        <option key={unit} value={unit}>{formatDurationUnitLabel(unit)}</option>
+                      ))}
                     </select>
                   </InputWrapper>
                 </div>
@@ -1028,7 +1036,22 @@ if (!form.platform?.trim()) {
               <button onClick={() => setIsImportModalOpen(false)} className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-neutral-600">Paste the job posting text. The system will extract position, company, description, requirements, and apply link.</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-600">Paste the job posting text. The system will extract position, company, description, requirements, and apply link.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowTemplate(!showTemplate)}
+                  className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <FileJson size={20} /> {showTemplate ? 'Hide Template' : 'Show Template'}
+                </button>
+                
+              </div>
+              {showTemplate && (
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-xs font-mono whitespace-pre-wrap text-neutral-700">
+                  {getTemplateText()}
+                </div>
+              )}
               <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={8} placeholder="Paste the full job posting here..." className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 rounded-xl transition-colors">Cancel</button>
