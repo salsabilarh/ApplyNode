@@ -188,11 +188,11 @@ function parseJobPosting(text: string): Partial<JobFormData> {
   const workMethodStr = findValue(/^(?:work method|work arrangement|mode)/);
   if (workMethodStr) {
     const lower = workMethodStr.toLowerCase();
-    if (lower.includes('remote')) result.workMethod = 'REMOTE';
+    if (lower.includes('remote')) result.workMethod = 'WFH';
     else if (lower.includes('hybrid')) result.workMethod = 'HYBRID';
-    else if (lower.includes('onsite') || lower.includes('on-site')) result.workMethod = 'ONSITE';
-    else if (lower.includes('office')) result.workMethod = 'OFFICE';
-    else if (lower.includes('flexible')) result.workMethod = 'FLEXIBLE';
+    else if (lower.includes('onsite') || lower.includes('on-site')) result.workMethod = 'WFO';
+    else if (lower.includes('office')) result.workMethod = 'WFO';
+    else if (lower.includes('flexible')) result.workMethod = 'WFH';
   }
 
   // Location
