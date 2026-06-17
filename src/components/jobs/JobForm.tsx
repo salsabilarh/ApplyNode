@@ -1436,7 +1436,7 @@ Opening Date: [YYYY-MM-DD]`;
                   <button
                     type="button"
                     onClick={handleApplyImport}
-                    className="px-5 py-2.5 bg-success-600 hover:bg-success-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
                   >
                     <CheckCircle2 size={16} />
                     Apply to Form
