@@ -6,7 +6,7 @@ import { JobType, Priority, JobStatus, DurationUnit, WorkMethod } from '@prisma/
 import { 
   ArrowLeft, Loader2, Briefcase, Calendar, 
   FileText, AlertCircle, Trash2, Plus, CheckCircle2, ExternalLink,
-  Upload, X, Sparkles, FileJson
+  Upload, X, Sparkles, FileJson, Edit
 } from 'lucide-react';
 import { useModal } from '@/context/ModalContext';
 import AlertModal from '@/components/ui/AlertModal';
@@ -140,25 +140,157 @@ const formatInitialData = (data: any): JobFormData => {
   };
 };
 
-// ========== PARSING FUNCTION ==========
+// ========== ENHANCED PARSING FUNCTION ==========
 function parseJobPosting(text: string): Partial<JobFormData> {
   const result: Partial<JobFormData> = {};
-  const positionMatch = text.match(/(?:Position|Job Title|Role):\s*(.+)/i) || text.match(/^([^\n]{10,80})/m);
-  if (positionMatch) result.position = positionMatch[1].trim();
-  const companyMatch = text.match(/(?:Company|At|Organization):\s*(.+)/i) || text.match(/(?:for|at)\s+([A-Z][a-zA-Z0-9\s&.]+)(?:\n|\.)/);
-  if (companyMatch) result.company = companyMatch[1].trim();
-  const descSection = text.match(/Description:?([\s\S]*?)(?=\n\s*(?:Requirements|Qualifications|Responsibilities|Benefits|$))/i);
-  if (descSection) result.description = descSection[1].trim();
-  const reqSection = text.match(/(?:Requirements|Qualifications):?([\s\S]*?)(?=\n\s*(?:Benefits|About|Apply|$))/i);
-  if (reqSection) result.requirement = reqSection[1].trim();
-  const urlMatch = text.match(/https?:\/\/[^\s]+/);
-  if (urlMatch) result.applyLink = urlMatch[0];
-  if (text.match(/linkedin/i)) result.platform = 'LinkedIn';
-  else if (text.match(/jobstreet/i)) result.platform = 'Jobstreet';
-  else if (text.match(/indeed/i)) result.platform = 'Indeed';
-  else if (text.match(/glassdoor/i)) result.platform = 'Glassdoor';
-  else if (text.match(/karir|glints/i)) result.platform = 'Glints';
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const fullText = text;
+
+  // Helper to find value after a label (case-insensitive)
+  const findValue = (labelRegex: RegExp, flags = 'i'): string | null => {
+    const regex = new RegExp(labelRegex.source + '\\s*[:：]?\\s*(.+)', flags);
+    const match = fullText.match(regex);
+    return match ? match[1].trim() : null;
+  };
+
+  // Position
+  let position = findValue(/^(?:position|job title|role|title)/);
+  if (!position) {
+    // Take first non-empty line that is not a label
+    const firstLine = lines.find(l => !/^(company|job type|work method|location|duration|platform|apply link|source link|description|requirements|deadline|opening date)/i.test(l));
+    if (firstLine && firstLine.length < 100) position = firstLine;
+  }
+  if (position) result.position = position;
+
+  // Company
+  let company = findValue(/^(?:company|organization|at|for)/);
+  if (!company) {
+    // Look for "at [Company]" or "for [Company]" in first few lines
+    const atMatch = fullText.match(/(?:at|for)\s+([A-Z][a-zA-Z0-9\s&.]+)(?=\n|\.|,)/);
+    if (atMatch) company = atMatch[1].trim();
+  }
+  if (company) result.company = company;
+
+  // Job Type
+  const jobTypeStr = findValue(/^(?:job type|type|employment type)/);
+  if (jobTypeStr) {
+    const lower = jobTypeStr.toLowerCase();
+    if (lower.includes('full time') || lower.includes('full-time')) result.jobType = 'FULL_TIME';
+    else if (lower.includes('part time') || lower.includes('part-time')) result.jobType = 'PART_TIME';
+    else if (lower.includes('contract')) result.jobType = 'CONTRACT';
+    else if (lower.includes('internship') || lower.includes('intern')) result.jobType = 'INTERNSHIP';
+    else if (lower.includes('freelance')) result.jobType = 'FREELANCE';
+    else if (lower.includes('project based') || lower.includes('project-based')) result.jobType = 'PROJECT_BASED';
+    else if (lower.includes('bootcamp')) result.jobType = 'BOOTCAMP';
+  }
+
+  // Work Method
+  const workMethodStr = findValue(/^(?:work method|work arrangement|mode)/);
+  if (workMethodStr) {
+    const lower = workMethodStr.toLowerCase();
+    if (lower.includes('remote')) result.workMethod = 'REMOTE';
+    else if (lower.includes('hybrid')) result.workMethod = 'HYBRID';
+    else if (lower.includes('onsite') || lower.includes('on-site')) result.workMethod = 'ONSITE';
+    else if (lower.includes('office')) result.workMethod = 'OFFICE';
+    else if (lower.includes('flexible')) result.workMethod = 'FLEXIBLE';
+  }
+
+  // Location
+  let location = findValue(/^(?:location|place|city|country|address)/);
+  if (!location) {
+    // Try to find after "in" or "at" near company
+    const locMatch = fullText.match(/(?:in|at)\s+([A-Z][a-zA-Z\s,]+)(?=\n|\.|,)/);
+    if (locMatch && !locMatch[1].toLowerCase().includes('company')) location = locMatch[1].trim();
+  }
+  if (location) result.location = location;
+
+  // Duration and Unit
+  const durationMatch = fullText.match(/(?:duration|contract length|length):?\s*(\d+)\s*(months|years|weeks|days)/i);
+  if (durationMatch) {
+    result.duration = durationMatch[1];
+    const unit = durationMatch[2].toUpperCase();
+    if (unit === 'MONTHS' || unit === 'YEARS' || unit === 'WEEKS' || unit === 'DAYS') {
+      result.durationUnit = unit as DurationUnit;
+    }
+  }
+
+  // Platform
+  let platform = findValue(/^(?:platform|source|job board)/);
+  if (!platform) {
+    const lowerText = fullText.toLowerCase();
+    if (lowerText.includes('linkedin')) platform = 'LinkedIn';
+    else if (lowerText.includes('jobstreet')) platform = 'Jobstreet';
+    else if (lowerText.includes('indeed')) platform = 'Indeed';
+    else if (lowerText.includes('glassdoor')) platform = 'Glassdoor';
+    else if (lowerText.includes('glints') || lowerText.includes('karir')) platform = 'Glints';
+  }
+  if (platform) result.platform = platform;
+
+  // Apply Link – find a URL that seems like application link (prefer with "apply" or "career")
+  const urls = fullText.match(/https?:\/\/[^\s]+/g) || [];
+  const applyUrl = urls.find(url => /apply|career|job|position/i.test(url)) || urls[0];
+  if (applyUrl) result.applyLink = applyUrl;
+
+  // Source Link – second URL if exists
+  if (urls.length > 1) {
+    const sourceUrl = urls.find(url => url !== applyUrl);
+    if (sourceUrl) result.sourceLink = sourceUrl;
+  }
+
+  // Description – extract after a clear header
+  const descMatch = fullText.match(/(?:description|about the role|job description):?\s*([\s\S]*?)(?=\n\s*(?:requirements|qualifications|responsibilities|benefits|about|apply|$))/i);
+  if (descMatch) result.description = descMatch[1].trim();
+
+  // Requirements – extract after headers
+  const reqMatch = fullText.match(/(?:requirements|qualifications|what you'll need):?\s*([\s\S]*?)(?=\n\s*(?:benefits|about|apply|deadline|$))/i);
+  if (reqMatch) result.requirement = reqMatch[1].trim();
+
+  // Deadline
+  const deadlineMatch = fullText.match(/(?:deadline|closing date|apply by|due date):?\s*([\d-]{8,10})/i);
+  if (deadlineMatch) {
+    const dateStr = deadlineMatch[1];
+    const parsed = parseDate(dateStr);
+    if (parsed) result.deadline = parsed;
+  }
+
+  // Opening Date
+  const openingMatch = fullText.match(/(?:opening date|posted|published|date posted):?\s*([\d-]{8,10})/i);
+  if (openingMatch) {
+    const dateStr = openingMatch[1];
+    const parsed = parseDate(dateStr);
+    if (parsed) result.openingDate = parsed;
+  }
+
   return result;
+}
+
+// Helper to parse various date formats to YYYY-MM-DD
+function parseDate(str: string): string | null {
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // DD/MM/YYYY or MM/DD/YYYY (try both)
+  const parts = str.split(/[\/\-.]/);
+  if (parts.length === 3) {
+    let year = parts[2];
+    let month = parts[1];
+    let day = parts[0];
+    // If year length 2, assume 20xx
+    if (year.length === 2) year = '20' + year;
+    if (parseInt(month) > 12) {
+      // swap month and day
+      [month, day] = [day, month];
+    }
+    const date = new Date(`${year}-${month}-${day}`);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  }
+  // Try with Date constructor for other formats (e.g., "June 30, 2026")
+  const date = new Date(str);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split('T')[0];
+  }
+  return null;
 }
 
 function isValidUrl(string: string): boolean {
@@ -290,7 +422,6 @@ export default function JobForm({ initialData }: { initialData?: any }) {
     appliedDate?: string;
   }>({});
 
-  // State untuk melacak apakah priority diubah manual
   const [isPriorityManuallySet, setIsPriorityManuallySet] = useState(false);
 
   // State untuk stage transition
@@ -333,11 +464,13 @@ export default function JobForm({ initialData }: { initialData?: any }) {
   const [tempResetList, setTempResetList] = useState<string[]>([]);
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   
+// ====== IMPORT MODAL STATE ======
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
-
+  const [importStep, setImportStep] = useState<'paste' | 'review'>('paste');
+  const [parsedData, setParsedData] = useState<Partial<JobFormData> | null>(null);
   // Checklist
   const [checklist, setChecklist] = useState<NoteItem[]>(() => {
     try { return JSON.parse(form.applyNotes); } catch { return []; }
@@ -471,6 +604,43 @@ export default function JobForm({ initialData }: { initialData?: any }) {
       setIsImportModalOpen(false);
       setImporting(false);
     }, 300);
+  };
+
+   // Handle import – parse and switch to review
+  const handleImportParse = () => {
+    if (!importText.trim()) return;
+    setImporting(true);
+    setTimeout(() => {
+      const parsed = parseJobPosting(importText);
+      setParsedData(parsed);
+      setImportStep('review');
+      setImporting(false);
+    }, 300);
+  };
+
+  // Apply parsed data to form
+  const handleApplyImport = () => {
+    if (parsedData) {
+      setForm(prev => ({ ...prev, ...parsedData }));
+      // If deadline was imported, auto-priority will recalc unless manually set
+      // Reset manual flag so priority updates automatically
+      setIsPriorityManuallySet(false);
+    }
+    setIsImportModalOpen(false);
+    setImportText('');
+    setParsedData(null);
+    setImportStep('paste');
+  };
+
+  // Clear parsed data and go back
+  const handleImportBack = () => {
+    setImportStep('paste');
+    setParsedData(null);
+  };
+
+  // Update parsed field
+  const updateParsedField = (field: keyof JobFormData, value: any) => {
+    setParsedData(prev => ({ ...prev, [field]: value }));
   };
 
   const finalSubmit = useCallback(async (finalForm: JobFormData) => {
@@ -1030,36 +1200,249 @@ Opening Date: [YYYY-MM-DD]`;
       {/* Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-neutral-950/40">
-          <div className="bg-white w-full max-w-2xl rounded-2xl border border-neutral-200 shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b">
-              <div className="flex items-center gap-2"><Sparkles size={20} className="text-success-500" /><h3 className="font-bold text-lg text-neutral-900">Import from Job Posting</h3></div>
-              <button onClick={() => setIsImportModalOpen(false)} className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors"><X size={18} /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-600">Paste the job posting text. The system will extract position, company, description, requirements, and apply link.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowTemplate(!showTemplate)}
-                  className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <FileJson size={20} /> {showTemplate ? 'Hide Template' : 'Show Template'}
-                </button>
-                
+          <div className="bg-white w-full max-w-3xl rounded-2xl border border-neutral-200 shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles size={20} className="text-success-500" />
+                <h3 className="font-bold text-lg text-neutral-900">
+                  {importStep === 'paste' ? 'Import from Job Posting' : 'Review Extracted Data'}
+                </h3>
               </div>
-              {showTemplate && (
-                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-xs font-mono whitespace-pre-wrap text-neutral-700">
-                  {getTemplateText()}
+              <button onClick={() => { setIsImportModalOpen(false); setImportStep('paste'); setParsedData(null); }} className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {importStep === 'paste' ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-neutral-600">Paste the job posting text. The system will extract key details.</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplate(!showTemplate)}
+                      className="px-3 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-medium text-sm rounded-lg transition-all flex items-center gap-2"
+                    >
+                      <FileJson size={16} /> {showTemplate ? 'Hide Template' : 'Show Template'}
+                    </button>
+                  </div>
+                  {showTemplate && (
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-xs font-mono whitespace-pre-wrap text-neutral-700 max-h-48 overflow-auto">
+                      Position: [Job Title]
+                      Company: [Company Name]
+                      Job Type: [FULL_TIME|PART_TIME|CONTRACT|INTERNSHIP|FREELANCE|PROJECT_BASED|BOOTCAMP]
+                      Work Method: [REMOTE|HYBRID|ONSITE|OFFICE|FLEXIBLE]
+                      Location: [City/Country]
+                      Duration: [number]
+                      Duration Unit: [MONTHS|YEARS|WEEKS|DAYS]
+                      Platform: [LinkedIn/Jobstreet/Indeed/etc.]
+                      Apply Link: [URL/email/phone]
+                      Source Link: [URL]
+                      Description: [Paste job description here]
+                      Requirement: [List qualifications]
+                      Deadline: [YYYY-MM-DD]
+                      Opening Date: [YYYY-MM-DD]
+                    </div>
+                  )}
+                  <textarea
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                    rows={8}
+                    placeholder="Paste the full job posting here..."
+                    className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+              ) : (
+                // Review step
+                <div className="space-y-4">
+                  <p className="text-sm text-neutral-600">Review and edit the extracted data below, then apply to the form.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Position */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Position</label>
+                      <input
+                        type="text"
+                        value={parsedData?.position || ''}
+                        onChange={(e) => updateParsedField('position', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Company */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Company</label>
+                      <input
+                        type="text"
+                        value={parsedData?.company || ''}
+                        onChange={(e) => updateParsedField('company', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Job Type */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Job Type</label>
+                      <select
+                        value={parsedData?.jobType || ''}
+                        onChange={(e) => updateParsedField('jobType', e.target.value === '' ? null : e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="">Auto-detect</option>
+                        {Object.values(JobType).map(jt => (
+                          <option key={jt} value={jt}>{formatJobType(jt)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Work Method */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Work Method</label>
+                      <select
+                        value={parsedData?.workMethod || ''}
+                        onChange={(e) => updateParsedField('workMethod', e.target.value === '' ? null : e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="">Auto-detect</option>
+                        {Object.values(WorkMethod).map(wm => (
+                          <option key={wm} value={wm}>{formatWorkMethodLabel(wm)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Location */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Location</label>
+                      <input
+                        type="text"
+                        value={parsedData?.location || ''}
+                        onChange={(e) => updateParsedField('location', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Duration + Unit */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Duration</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={parsedData?.duration || ''}
+                          onChange={(e) => updateParsedField('duration', e.target.value)}
+                          className="flex-1 border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                          placeholder="Number"
+                        />
+                        <select
+                          value={parsedData?.durationUnit || ''}
+                          onChange={(e) => updateParsedField('durationUnit', e.target.value === '' ? null : e.target.value)}
+                          className="flex-1 border border-neutral-200 rounded-xl px-3 py-2 text-sm bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        >
+                          <option value="">Unit</option>
+                          {Object.values(DurationUnit).map(du => (
+                            <option key={du} value={du}>{formatDurationUnitLabel(du)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {/* Platform */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Platform</label>
+                      <input
+                        type="text"
+                        value={parsedData?.platform || ''}
+                        onChange={(e) => updateParsedField('platform', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Apply Link */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Apply Link</label>
+                      <input
+                        type="text"
+                        value={parsedData?.applyLink || ''}
+                        onChange={(e) => updateParsedField('applyLink', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Source Link */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Source Link</label>
+                      <input
+                        type="text"
+                        value={parsedData?.sourceLink || ''}
+                        onChange={(e) => updateParsedField('sourceLink', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Deadline */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Deadline</label>
+                      <input
+                        type="date"
+                        value={parsedData?.deadline || ''}
+                        onChange={(e) => updateParsedField('deadline', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    {/* Opening Date */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-neutral-700">Opening Date</label>
+                      <input
+                        type="date"
+                        value={parsedData?.openingDate || ''}
+                        onChange={(e) => updateParsedField('openingDate', e.target.value)}
+                        className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+                  {/* Description and Requirements - full width */}
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-neutral-700">Description</label>
+                    <textarea
+                      value={parsedData?.description || ''}
+                      onChange={(e) => updateParsedField('description', e.target.value)}
+                      rows={4}
+                      className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-neutral-700">Requirements</label>
+                    <textarea
+                      value={parsedData?.requirement || ''}
+                      onChange={(e) => updateParsedField('requirement', e.target.value)}
+                      rows={4}
+                      className="w-full border border-neutral-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
                 </div>
               )}
-              <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={8} placeholder="Paste the full job posting here..." className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm resize-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" />
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50 rounded-xl transition-colors">Cancel</button>
-                <button type="button" onClick={handleImport} disabled={importing || !importText.trim()} className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2">
-                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                  <span>{importing ? 'Importing...' : 'Import & Fill'}</span>
-                </button>
-              </div>
+            </div>
+
+            <div className="flex justify-between items-center p-5 border-t flex-shrink-0 bg-neutral-50">
+              {importStep === 'paste' ? (
+                <>
+                  <button type="button" onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-xl transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleImportParse}
+                    disabled={importing || !importText.trim()}
+                    className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    <span>{importing ? 'Parsing...' : 'Parse & Review'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={handleImportBack} className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-xl transition-colors">
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyImport}
+                    className="px-5 py-2.5 bg-success-600 hover:bg-success-700 text-white font-semibold text-sm rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={16} />
+                    Apply to Form
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
